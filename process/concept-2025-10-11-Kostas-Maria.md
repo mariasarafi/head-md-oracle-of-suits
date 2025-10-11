@@ -67,7 +67,7 @@ Drawing on the suits’ social symbolism and their hypothesized emotional associ
 Symbolism
 
 ## User Journey
-<i>[User Journey](./images/User-Journey-KM.jpg)</i>
+<i>[User Journey](./Images/User-Journey-KM.jpg)</i>
 
 ## Novel Combinations
 
