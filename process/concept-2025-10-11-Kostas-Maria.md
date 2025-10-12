@@ -40,9 +40,9 @@ Tarot cards use the Italian suits of swords, cups, coins, and batons (bastoni) o
 </div>
 <br>
 
-2. <b>Seasons and the classical elements.</b> By 1582, the Gregorian calendar was largely adopted by Europe, so playing cards began to correlate with the year, the seasons, and the solstices. The four suits represent the four seasons/solstices or the four phases of the moon. Suits may also parallel the four elements found in nature: hearts for water, clubs for fire, diamonds for earth and spades for air (<a href="https://www.artofplay.com/blogs/stories/the-symbology-of-playing-cards" target="_blank"> <i>The Symbology of Playing Cards</i></a>).
+2. <b>Seasons and the classical elements.</b> By 1582, the Gregorian calendar was largely adopted by Europe, so playing cards began to correlate with the year, the seasons, and the solstices. The four suits represent the four seasons/solstices or the four phases of the moon. Suits may also parallel the four elements found in nature: hearts for water, clubs for fire, diamonds for earth and spades for air. The twelve royals (King, Queen, and Jack), represent the twelve months of the year, each suit of thirteen cards represents the thirteen weeks in each season (<a href="https://www.artofplay.com/blogs/stories/the-symbology-of-playing-cards" target="_blank"> <i>The Symbology of Playing Cards</i></a>).
 
-Before 1873 and the adaptation of the Gregorian calendar, the Japanese calendar was based on the Chinese solar-lunar calendar, which took into account the movements of both the Earth around the Sun, and the Moon around the Earth (<a href="https://hanafudahawaii.com/2025/03/10/symbols-and-motifs-in-hanafuda/" target="_blank"> <i>Symbols and Motifs in Hanafuda</i></a>).
+Before 1873 and the adaptation of the Gregorian calendar, the Japanese calendar was based on the Chinese solar-lunar calendar, which took into account the movements of both the Earth around the Sun, and the Moon around the Earth. Hanafuda cards are organized in twelve suits that correspond to months of the year, each month represented with a flowering plant (<a href="https://hanafudahawaii.com/2025/03/10/symbols-and-motifs-in-hanafuda/" target="_blank"> <i>Symbols and Motifs in Hanafuda</i></a>).
 
 In tarot the suits represent the four elements – swords (thoughts or air), cups (emotions or water), coins/pentacles (material aspects or earth), and batons/wands (actions or fire) (<a href="https://www.vam.ac.uk/articles/tarot-cards" target="_blank"> <i>A history of tarot cards</i></a>). 
 
@@ -61,7 +61,7 @@ Drawing on the suits’ social symbolism and their hypothesized emotional associ
 
 ## Suitscapes
 
-<i>Suitscapes</i> is an immersive audiovisual experience in which the user shuffles through the history of suits, exploring their associations with the seasons, the elements, and human emotions. By swiping to enter a seasonal landscape surrounded by that season's suits, the user taps on a "suit-friend" to unlock its origin, along with a fun fact. Accompanied by this suit, they must recover the season's element. By recovering the element and performing the corresponding emotional gesture, they gain access to the next seasonal universe. At the end of the journey, after recovering all four elements, all suits reunite to celebrate, marking the completion of the player’s quest.
+<i>Suitscapes</i> is an immersive audiovisual experience in which the user shuffles through the history of suits, exploring their associations with the seasons, the elements, and human emotions. A swipe transports the user into a seasonal landscape filled with that season’s suits. Tapping a “suit-friend” reveals its origin and a fun fact. Accompanied by this suit, they must recover the season's element. By recovering the element and performing the corresponding emotional gesture, they gain access to the next seasonal universe. At the end of the journey, after recovering all four elements, all suits reunite to celebrate, marking the completion of the player’s quest. 
 
 ## Keyword
 Symbolism
@@ -73,4 +73,4 @@ Symbolism
 
 - Suitscapes
 - Swipe
-- Mindfest
+- Immersive Experience
