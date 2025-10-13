@@ -49,11 +49,12 @@ In tarot the suits represent the four elements – swords (thoughts or air), cup
 3. <b>Social classes and emotions.</b> Suits have been associated also to social classes, hearts or cups symbolized the clergy, diamonds or coins represented the merchant class and wealth, spades or swords stood for the nobility/aristocracy or the warrior class, and clubs or wands symbolized the peasantry or those who worked the land. 
 
 Drawing on the suits’ social symbolism and their hypothesized emotional associations with social classes, a matrix can be established that links each suit to a corresponding set of emotions.
+
 <br>
 <div align="center">
-  <img src="./Images/Suits-Emotions-table.png" alt="Suits Social Classes and Emotions" width=70%>
+  <img src="./Images/Suits-Emotions-table.png" alt="Suits Social Classes and Emotions" width=70% >
   <br>
-  <em>Suits, Social Classes and Emotions</em>
+  <em><a href="https://vipspades.com/blog/the-meaning-of-playing-cards-symbols/" target="_blank"> <i>Card Decks Suits</i></a></em>  
 </div>
 <br>
 
