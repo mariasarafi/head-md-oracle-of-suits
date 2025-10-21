@@ -5,6 +5,11 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
 }
 
+function resizewindow() {
+  // resize the canvas to match the new window size
+  resizeCanvas(windowWidth, windowHeight);
+}
+
 // The draw function runs continuously in a loop
 // to create animations and render graphics
 // until the program is stopped
