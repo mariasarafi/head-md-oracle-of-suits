@@ -9,3 +9,5 @@ Following the color palette of the Face landmarks
 
 I removed the camera and kept only the face landmarks and the interaction result. 
 The background is now black, I tried to add an image but I would have prefered to have a more interactive background.
+
+IMAGES TO BE ADDED. There is a video recording too.
