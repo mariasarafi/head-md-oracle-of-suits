@@ -1,0 +1,21 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+/* fullscreen p5 canvas */
+canvas.p5Canvas,
+canvas {
+  display: block;
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  z-index: 999;
+}
+
+/* NOTE: no rule here that hides <video>. If you *do* want the raw camera hidden, add the hide block. */
