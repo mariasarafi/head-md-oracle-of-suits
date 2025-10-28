@@ -81,6 +81,15 @@ function draw() {
     // draw GIF background instead of camera
     drawGifBackground();
 
+    // Instruction at top (same styling as "Try again!")
+    push();
+    textAlign(CENTER, TOP);
+    textSize(28);
+    fill(255, 50, 120); // same color as "Try again!"
+    noStroke();
+    text('Smile please :)', width * 0.5, 80); // 80 instead of 12
+    pop();
+
     // get detected faces (guard if helper missing)
     let faces = [];
     if (typeof getFaceLandmarks === 'function') {
