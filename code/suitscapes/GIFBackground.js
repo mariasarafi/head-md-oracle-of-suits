@@ -55,18 +55,12 @@ function drawGifBackground() {
   }
 }
 
-// draw fallback background (centered image or solid black)
 function drawFallbackBackground() {
+  // draw fallback background stretched to cover the whole canvas
   if (bgFallbackImage) {
-    const iw = bgFallbackImage.width;
-    const ih = bgFallbackImage.height;
-    const scale = min(1, min(width / iw, height / ih));
-    const w = iw * scale;
-    const h = ih * scale;
-    const x = (width - w) / 2;
-    const y = (height - h) / 2;
-    background(0);
-    image(bgFallbackImage, x, y, w, h);
+    noTint();
+    // ensure we draw over whole canvas
+    image(bgFallbackImage, 0, 0, width, height);
   } else {
     background(0);
   }

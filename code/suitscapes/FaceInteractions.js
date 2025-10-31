@@ -64,7 +64,7 @@ function onSmile(score) {
   playBeep(900 + score * 400, 0.12, 'sine');
 
   // show success text for 1.2s
-  showSuccessUntil = millis() + 1200;
+  //showSuccessUntil = millis() + 1200;
 
   gifEnabled = false;
 

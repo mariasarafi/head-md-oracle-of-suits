@@ -133,8 +133,9 @@ function draw() {
 
       // update smile detection and UI feedback only while gifEnabled
       try { updateSmile(); } catch (e) { console.error('updateSmile error:', e); }
-
-      if (showSuccessUntil > millis()) {
+      
+      // don't show success message anymore; just "Try again!" if not smiling
+      /*if (showSuccessUntil > millis()) {
         push();
         textAlign(CENTER, CENTER);
         textSize(32);
@@ -142,7 +143,8 @@ function draw() {
         noStroke();
         text('Success', width * 0.5, height - 80);
         pop();
-      } else if (!isSmiling) {
+      } else */ 
+      if (!isSmiling) {
         push();
         textAlign(CENTER, CENTER);
         textSize(28);
