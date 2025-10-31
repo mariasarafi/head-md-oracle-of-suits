@@ -31,6 +31,8 @@ const USE_CROSSFADE = false; // set false for hard cut between frames
 // control how long each frame is shown (ms). Set to 2000 for 2 seconds per frame.
 const GIF_FRAME_HOLD_MS = 500; // <-- change this value for longer/shorter interval
 
+let bgFallbackImage = null;
+
 function preload() {
   // load the two frames into gifImgs
   for (let i = 0; i < GIF_FRAMES.length; i++) {
@@ -41,6 +43,12 @@ function preload() {
       err => { console.warn('Failed to load', GIF_FRAMES[i], err); gifImgs[i] = null; }
     );
   }
+
+  // load fallback background image (used instead of black)
+  loadImage('Images/jass-summer.png',
+    img => { bgFallbackImage = img; console.log('Loaded fallback bg: Images/jass-summer.png'); },
+    err => { bgFallbackImage = null; console.warn('Images/jass-summer.png not found'); }
+  );
 }
 
 function setup() {
@@ -509,7 +517,23 @@ function calibrateSmile(score) {
 
 function drawGifBackground() {
   const frames = gifImgs.filter(f => f);
-  if (!frames.length) { background(0); return; }
+  if (!frames.length) {
+    // draw fallback image centered at natural size (scale down if larger than canvas)
+    if (bgFallbackImage) {
+      const iw = bgFallbackImage.width;
+      const ih = bgFallbackImage.height;
+      const scale = min(1, min(width / iw, height / ih)); // only scale down
+      const w = iw * scale;
+      const h = ih * scale;
+      const x = (width - w) / 2;
+      const y = (height - h) / 2;
+      background(0); // keep black behind the image edges
+      image(bgFallbackImage, x, y, w, h);
+    } else {
+      background(0); // fallback if image not present
+    }
+    return;
+  }
 
   // frameDuration: prefer explicit hold ms if defined
   const frameDuration = (typeof GIF_FRAME_HOLD_MS !== 'undefined' && GIF_FRAME_HOLD_MS > 0)
@@ -521,11 +545,9 @@ function drawGifBackground() {
   const idx = totalIndex % frames.length;
   const next = (idx + 1) % frames.length;
 
-  // helper to compute draw rect that preserves aspect ratio and does NOT stretch
   function computeDrawRect(img) {
     const iw = img.width;
     const ih = img.height;
-    // only scale down if image larger than canvas, otherwise keep natural size
     const scale = min(1, min(width / iw, height / ih));
     const w = iw * scale;
     const h = ih * scale;
@@ -536,18 +558,32 @@ function drawGifBackground() {
 
   if (!USE_CROSSFADE || frames.length === 1) {
     const r = computeDrawRect(frames[idx]);
-    background(0); // black around image
+    // draw fallback image behind the frame if available, otherwise black
+    if (bgFallbackImage) {
+      // draw fallback first (centered)
+      const fb = computeDrawRect(bgFallbackImage);
+      image(bgFallbackImage, fb.x, fb.y, fb.w, fb.h);
+    } else {
+      background(0);
+    }
     image(frames[idx], r.x, r.y, r.w, r.h);
   } else {
     const progress = (t % frameDuration) / frameDuration; // 0..1 across the hold period
     const r1 = computeDrawRect(frames[idx]);
     const r2 = computeDrawRect(frames[next]);
-    // draw first with fading out
+
+    // draw fallback behind both frames
+    if (bgFallbackImage) {
+      const fb = computeDrawRect(bgFallbackImage);
+      image(bgFallbackImage, fb.x, fb.y, fb.w, fb.h);
+    } else {
+      background(0);
+    }
+
+    // overlay crossfading frames
     push();
     tint(255, 255 * (1 - progress));
-    background(0);
     image(frames[idx], r1.x, r1.y, r1.w, r1.h);
-    // draw next fading in
     tint(255, 255 * progress);
     image(frames[next], r2.x, r2.y, r2.w, r2.h);
     pop();
