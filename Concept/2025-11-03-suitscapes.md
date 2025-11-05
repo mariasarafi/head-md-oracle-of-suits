@@ -49,7 +49,8 @@ The main objectives of the suitscapes project are: - TO MAKE MORE SPECIFIC
 16. All suits friends parade to say goodbye - suits overview.
 
 ### Installation - Equipment
-180 degrees projection on tissues with audio visuals and interactions tracked by camera.
+- 180 degrees projection on tissues with audio visuals and interactions tracked by camera. 
+- Ideally we would love to have projection on the floor too for the elements, to be checked based on the progress.
 
 Total equipment for the installation:
 - 2 projectors (we will use the one already installed) -> +1 projector
