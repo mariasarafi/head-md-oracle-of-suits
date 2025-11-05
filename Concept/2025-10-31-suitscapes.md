@@ -15,6 +15,12 @@ The main objectives of the suitscapes project are: - TO MAKE MORE SPECIFIC
 - Duck to avoir the air element
 - The suit of the season tracks the hand motion; in case of fire move the hand away from the fire
 
+<br>
+<div align="center">
+    <img src="./Images/Core Interactions.png" alt="Core Interactions" width=80% > 
+</div>
+<br>
+
 ### User Journey
 #### Content
 - 4 Decks: Latin - Italian, Swiss-German (Jass), French and Hanafuda. We decided to integrate Hanafuda instead of Tarot, although it's not a 4-suits but a 12-suits card game (the 12 months of the four seasons), in order to present a non-european deck, with a less anthopocentric approach, and show that there are also different systems of suits
@@ -67,6 +73,15 @@ TO DO - We have TO REVIEW following installation points based on the simulation,
 - User in standing position
 - Up to 3 "players" (3 projections)
 
+
+Our Moodboard: 
+<br>
+<div align="center">
+    <img src="./Images/Installation Moodboard.png" alt="Installation Moodboard" width=80% > 
+</div>
+<br>
+
+Examples for our Installation:
 <br>
 <div align="center">
     <img src="./Images/strategy_curtains_red.jpg" alt="Installation " width=80% > 

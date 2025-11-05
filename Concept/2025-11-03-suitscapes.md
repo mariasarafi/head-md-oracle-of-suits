@@ -15,6 +15,12 @@ The main objectives of the suitscapes project are: - TO MAKE MORE SPECIFIC
 - Duck to avoir the air element
 - The suit of the season tracks the hand motion; in case of fire move the hand away from the fire
 
+<br>
+<div align="center">
+    <img src="./Images/Core Interactions.png" alt="Core Interactions" width=80% > 
+</div>
+<br>
+
 ### User Journey
 #### Content
 - 4 Decks: Latin - Italian, Swiss-German (Jass), French and Hanafuda. We decided to integrate Hanafuda instead of Tarot, although it's not a 4-suits but a 12-suits card game (the 12 months of the four seasons), in order to present a non-european deck, with a less anthopocentric approach, and show that there are also different systems of suits
@@ -42,34 +48,45 @@ The main objectives of the suitscapes project are: - TO MAKE MORE SPECIFIC
 15. Steps 5 to 13 repeat three times until we completed 4 seasons with 4 different decks.
 16. All suits friends parade to say goodbye - suits overview.
 
-#### Implementation - Next Steps
+### Installation - Equipment
+180 degrees projection on tissues with audio visuals and interactions tracked by camera.
 
+Total equipment for the installation:
+- 2 projectors (we will use the one already installed) -> +1 projector
+- 3 webcameras
+- 2 speakers
+- 1 laptop / computer
+- 1 Poster hanging rail 170m
+- 1 or more fabrics (to be tested and finalized the size and the type) 170 cm (width) x 120 cm (height)
+-  Long extension cables for cameras, cable for projector (HDMI)
+- Adapter to connect all the cables to the computer
+- Hooks, thread, clips for the fabric
 
-### Installation - TO BE REVIEWED
-We simulated today the available museum space, based on the museum plan (approximately, because exact dimensions are not mentioned on the floor plan). The width is around 1,50 m + 0,25 m if we add some extra space in front of the door. The depth is around 1,50 m. 
+We tested the fabric installation first with the backside of a photo printed on fabric from Maria's latest exhibition. The size in landscape mode is 168 x 120 cm so around this size should be our main fabric. The two fabrics on the side should be in portrait orientation and longer.
 
 <br>
 <div align="center">
-    <img src="./Images/Simulation-Museum-Space-175x150.jpg" alt="Simulation of museum space " width=50% > 
+    <img src="./Images/Installation_Sketch.jpg" alt="Installation sketch" width=80% > 
 </div>
 <br>
 
-We did discuss with Laure Tuesday, 28 october, about the installation - see following ideas
+
+Searched for fabric similar to the fabric used for the photo print in IKEA, Coop, Jumbo (MACO was closed) and finally at HEAD's fashion school so we bought cotton fabric there. Replaced photo with our new fabric:
 
 <br>
 <div align="center">
-    <img src="./Images/Laure-Installation-Ideas.jpg" alt="Simulation of museum space " width=50% > 
+    <img src="./Images/Tissue_First_Test.jpg" alt="Tissue First Test " width=50% > 
 </div>
 <br>
 
-TO DO - We have TO REVIEW following installation points based on the simulation, the discussion with Laure and after finalizing our Core Interactions list.
+Our Moodboard: 
+<br>
+<div align="center">
+    <img src="./Images/Installation Moodboard.png" alt="Installation Moodboard" width=80% > 
+</div>
+<br>
 
-- 3 projectors, 3 motion-tracking webcameras ! Is there a max camera angle for having accurate results if camera not if front but with an angle with the appropriate training? (camera with wide angle lens)
-- 4th webcamera on top for the hand gestures
-- Projection 270 degrees on fabric
-- User in standing position
-- Up to 3 "players" (3 projections)
-
+Examples for our Installation:
 <br>
 <div align="center">
     <img src="./Images/strategy_curtains_red.jpg" alt="Installation " width=80% > 
