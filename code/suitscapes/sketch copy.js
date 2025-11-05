@@ -23,7 +23,7 @@ function preload() {
 
 function setup() {
   // full window canvas
-  createCanvas(windowWidth, windowHeight);
+  /*createCanvas(windowWidth, windowHeight);
   pixelDensity(1);
   
   // initialize MediaPipe
@@ -53,6 +53,32 @@ function setup() {
     } else {
       console.warn('No video element found to hide.');
     }
+  }, 300); */
+
+  createCanvas(windowWidth, windowHeight);
+  pixelDensity(1);
+
+  // initialize MediaPipe
+  // initialize face/video if those functions exist
+  if (typeof setupFace === 'function') setupFace();
+  if (typeof setupVideo === 'function') setupVideo();
+
+  // set the deck + season (calls the loader in GIFBackground.js)
+  if (typeof setDeckSeason === 'function') {
+    setDeckSeason('Jass', 'Summer'); // <-- change to the deck+season you want
+  }
+
+  // force smile interaction mode (if FaceInteractions exposes setInteractionMode)
+  if (typeof setInteractionMode === 'function') {
+    setInteractionMode('smile');
+  } else {
+    window.pendingInteractionMode = 'smile';
+  }
+
+  // hide video element offscreen if needed
+  setTimeout(() => {
+    const v = window.videoElement || document.querySelector('video');
+    if (v) { v.style.position = 'absolute'; v.style.left = '-9999px'; v.style.top = '-9999px'; v.style.width = '1px'; v.style.height = '1px'; v.style.opacity = '0'; }
   }, 300);
 
 }

@@ -71,7 +71,6 @@ We tested the fabric installation first with the backside of a photo printed on 
 </div>
 <br>
 
-
 Searched for fabric similar to the fabric used for the photo print in IKEA, Coop, Jumbo (MACO was closed) and finally at HEAD's fashion school so we bought cotton fabric there. Replaced photo with our new fabric:
 
 <br>
