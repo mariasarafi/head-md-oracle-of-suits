@@ -93,6 +93,14 @@ function onSmile(score) {
 
   gifEnabled = false;
 
+  // persist the shield at the last GIF position so it remains visible after a successful smile
+  if (typeof persistShieldAtLastGif === 'function') {
+    persistShieldAtLastGif();
+  } else if (typeof setShieldPersistent === 'function') {
+    setShieldPersistent(true);
+  } else {
+    console.warn('Shield persistence API not found: persistShieldAtLastGif / setShieldPersistent');
+  }
 }
 
 function calibrateSmile(score) {

@@ -66,12 +66,8 @@ function draw() {
   if (frameCount % 120 === 0) console.log('frame', frameCount);
 
   try {
-    // draw GIF background only if enabled; otherwise draw fallback
-    if (gifEnabled) {
-      drawGifBackground();
-    } else {
-      drawFallbackBackground();
-    }
+    // CHANGED: always call drawGifBackground — it handles both GIF frames and persistent shield
+    drawGifBackground();
 
     // get detected faces (guard if helper missing)
     let faces = [];
