@@ -1,3 +1,4 @@
+
 // GIF-like animation from two images (replace single bgImage usage)
 // Configure these two filenames (place them in Images/)
 const GIF_FRAMES = [
@@ -55,6 +56,7 @@ function drawGifBackground() {
   }
 }
 
+// ? stretched..... not ideal but not very visible because background images in 3:2 aspect ratio
 function drawFallbackBackground() {
   // draw fallback background stretched to cover the whole canvas
   if (bgFallbackImage) {

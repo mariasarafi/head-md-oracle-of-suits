@@ -590,5 +590,3 @@ function drawGifBackground() {
     noTint();
   }
 }
-
-

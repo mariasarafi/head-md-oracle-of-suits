@@ -14,12 +14,27 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_landmark/face_landmark.js"></script>
     <!-- import our custom MediaPipeFace helper -->
     <script src="MediaPipeFace.js"></script>
+    <!-- Game/data/model layer -->
+    <script src="config/deckData.js"></script>
+    <script src="core/Suit.js"></script>
+    <script src="core/Deck.js"></script>
+    <script src="core/GameState.js"></script>
+    <script src="core/UIController.js"></script>
+
+    <!-- Scene system -->
+    <script src="scenes/SceneManager.js"></script>
+
+    <!-- Visuals and interactions -->
+    <script src="visuals/GIFOverlay.js"></script>
+    <script src="interactions/FaceInteraction.js"></script>
+
+    <!-- Concrete scenes -->
+    <script src="scenes/EndScene.js"></script>
+    <script src="scenes/LevelScene.js"></script>
+    <script src="scenes/StartScene.js"></script>
   </head>
 
   <body>
-    <script src="Sound.js"></script>
-     <script src="GIFBackground.js"></script>
-    <script src="FaceInteractions.js"></script>
     <script src="sketch.js"></script>
   </body>
 
