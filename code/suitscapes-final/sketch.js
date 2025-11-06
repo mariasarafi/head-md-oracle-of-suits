@@ -124,7 +124,7 @@ function draw() {
   background(255);
   
   // DEBUG: Show mouth tracking status in corner
-  if (trackUserMouth) {
+  /*if (trackUserMouth) {
     const mouthValue = getUserMouthOpening();
     push();
     fill(0);
@@ -140,7 +140,7 @@ function draw() {
     fill(0, 255, 0);
     rect(10, 50, mouthValue * 100, 20);
     pop();
-  }
+  }*/
   
   if (imagesLoaded) {
     const currentTime = millis();
@@ -238,9 +238,9 @@ function draw() {
         // START TRACKING USER'S MOUTH
         trackUserMouth = true;
         // SHOW TRACKING MESSAGE
-        centerMessage = 'Display tracked mouth now starts';
-        centerMessageStartTime = millis();
-        trackingMessageShown = true;
+        //centerMessage = 'Display tracked mouth now starts';
+        //centerMessageStartTime = millis();
+        //trackingMessageShown = true;
       }
     }
     
@@ -430,6 +430,102 @@ function getUserMouthOpening() {
   }
   
   return smoothedMouthOpening; // Return last known value on error
+}
+
+/**
+ * Draws a procedurally generated mouth using shapes (alternative to image-based mouth)
+ * @param {number} x - X position of the suit
+ * @param {number} y - Y position of the suit
+ * @param {number} targetHeight - Height of the suit image
+ * @param {boolean} useUserMouth - If true, use tracked user mouth instead of animation
+ */
+function drawProceduralMouth(x, y, targetHeight, useUserMouth = false) {
+  let mouthWidth, mouthHeight, mouthYOffset, mouthCurvature;
+  
+  if (useUserMouth) {
+    // USE TRACKED USER'S MOUTH
+    const mouthData = getUserMouthData();
+    
+    // Base mouth dimensions
+    const baseMouthWidth = targetHeight * 0.2; // Base width
+    const baseMouthHeight = targetHeight * 0.08; // Base height
+    
+    // Scale based on tracked data
+    // Width increases when smiling
+    mouthWidth = baseMouthWidth * (0.8 + mouthData.width * 0.4);
+    // Height increases when mouth opens
+    mouthHeight = baseMouthHeight * (0.5 + mouthData.opening * 1.5);
+    
+    // Vertical position
+    const baseOffset = targetHeight * 0.15; // Position below center of suit
+    const verticalMovement = mouthData.centerY * 20;
+    mouthYOffset = baseOffset + verticalMovement + (mouthData.opening * 10);
+    
+    // Curvature: smile curves up, frown curves down
+    const smileFactor = (mouthData.width - 0.5) * 2; // -1 to 1
+    mouthCurvature = smileFactor * 30; // Positive = smile, negative = frown
+    
+  } else {
+    // ANIMATED MOUTH (for messages)
+    const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2;
+    
+    const baseMouthWidth = targetHeight * 0.2;
+    const baseMouthHeight = targetHeight * 0.08;
+    
+    mouthWidth = baseMouthWidth;
+    mouthHeight = baseMouthHeight * (0.5 + mouthOpenAmount * 1.0);
+    mouthYOffset = targetHeight * 0.15;
+    mouthCurvature = 0; // Neutral expression during animation
+  }
+  
+  push();
+  translate(x, y + mouthYOffset);
+  
+  // Draw mouth shape
+  fill(0); // Black color
+  noStroke();
+  
+  beginShape();
+  
+  // Draw mouth as a curved shape using bezier-like points
+  // Top lip (left to right)
+  const numPoints = 20;
+  
+  for (let i = 0; i <= numPoints; i++) {
+    const t = i / numPoints;
+    const xPos = map(t, 0, 1, -mouthWidth / 2, mouthWidth / 2);
+    
+    // Top curve (upper lip)
+    const topCurve = -mouthHeight / 2 + abs(sin(t * PI)) * (mouthHeight * 0.3);
+    const topY = topCurve + sin(t * PI) * (mouthCurvature * 0.3);
+    
+    vertex(xPos, topY);
+  }
+  
+  // Bottom lip (right to left)
+  for (let i = numPoints; i >= 0; i--) {
+    const t = i / numPoints;
+    const xPos = map(t, 0, 1, -mouthWidth / 2, mouthWidth / 2);
+    
+    // Bottom curve (lower lip)
+    const bottomCurve = mouthHeight / 2 - abs(sin(t * PI)) * (mouthHeight * 0.2);
+    const bottomY = bottomCurve + sin(t * PI) * mouthCurvature;
+    
+    vertex(xPos, bottomY);
+  }
+  
+  endShape(CLOSE);
+  
+  // Optional: Add inner mouth darkness (when open)
+  if (useUserMouth) {
+    const mouthData = getUserMouthData();
+    if (mouthData.opening > 0.3) {
+      fill(0, 0, 0, 150); // Semi-transparent black
+      ellipse(0, mouthHeight * 0.2, mouthWidth * 0.6, mouthHeight * 0.8);
+    }
+  }
+  
+  pop();
 }
 
 /**
@@ -664,28 +760,20 @@ function drawSuitsInCircle() {
       
       image(img, x, y, targetWidth, targetHeight);
       
-      // Show mouths logic:
-      // - During messages: animated mouth
-      // - During individual intros: animated mouth
-      // - After final message ends: USER-TRACKED mouth
       const shouldShowMouth = centerMessage !== null || isIntroducing || trackUserMouth;
       
       if (shouldShowMouth) {
-        // Use user's tracked mouth ONLY after tracking starts and no messages showing
         const useTrackedMouth = trackUserMouth && !isIntroducing;
-        drawSpeakingMouth(i, x, y, targetHeight, useTrackedMouth);
+        
+        // LOGIC: Use image-based mouth UNTIL tracking starts, then switch to procedural
+        if (trackUserMouth && !centerMessage && !isIntroducing) {
+          // User mouth tracking is active AND no messages showing = use procedural mouth
+          drawProceduralMouth(x, y, targetHeight, useTrackedMouth);
+        } else {
+          // During messages and introductions = use image-based mouth
+          drawSpeakingMouth(i, x, y, targetHeight, useTrackedMouth);
+        }
       }
-    } else {
-      const placeholderSize = height * CONFIG.imageHeightRatio;
-      push();
-      fill(200);
-      stroke(100);
-      strokeWeight(2);
-      circle(x, y, placeholderSize);
-      fill(100);
-      textSize(12);
-      text('?', x, y);
-      pop();
     }
   }
 }
