@@ -93,7 +93,7 @@ const CONFIG = {
   // Rotation settings
   rotationSpeed: 0.005,         // Speed of circular rotation (radians per frame)
   initialMessageDelay: 1000,    // Delay before showing initial message in milliseconds (2 seconds)
-  initialRotationDuration: 3000, // Duration of intro rotation in milliseconds (3 seconds)
+  initialRotationDuration: 2000, // Duration of intro rotation in milliseconds (3 seconds)
 
   // Suit introduction settings
   bottomSuitIntroDuration: 2000, // Duration each suit shakes and introduces itself (3 seconds)
@@ -132,7 +132,7 @@ const CONFIG = {
   cardFallingDuration: 20000,    // Duration cards fall before freezing (10 seconds)
   
   // NEW: Card falling control options
-  cardsShouldStop: true, // Set to true if you want cards to stop falling
+  cardsShouldStop: false, // Set to true if you want cards to stop falling
   cardFallingDuration: 15000, // Duration before slowing down (ms) - only used if cardsShouldStop = true
   cardSlowDownDuration: 3000, // Duration of slow-down phase (ms) - only used if cardsShouldStop = true
   cardsStopAfterMessage: false // Set to true to stop cards after final message appears
