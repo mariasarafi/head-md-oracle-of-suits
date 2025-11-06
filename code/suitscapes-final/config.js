@@ -130,5 +130,11 @@ const CONFIG = {
   cardSpawnInterval: 300,       // Spawn cards less frequently
   cardSpawnCount: 2,            // Fewer cards at a time
   cardFallingDuration: 20000,    // Duration cards fall before freezing (10 seconds)
-  cardSlowDownDuration: 2000    // Duration of smooth deceleration (2 seconds)
+  
+  // NEW: Card falling control options
+  cardsShouldStop: false, // Set to true if you want cards to stop falling
+  cardFallingDuration: 15000, // Duration before slowing down (ms) - only used if cardsShouldStop = true
+  cardSlowDownDuration: 3000, // Duration of slow-down phase (ms) - only used if cardsShouldStop = true
+  cardsStopAfterMessage: false, // Set to true to stop cards after final message appears
+  
 };

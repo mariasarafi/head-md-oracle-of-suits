@@ -28,6 +28,9 @@ let finalMessageShown = false;
 let continuousRotation = false;
 let trackUserMouth = false;
 let trackingMessageShown = false; // New flag for tracking message
+let smoothedMouthOpening = 0; // New: smoothed mouth value for natural motion
+let smoothedMouthWidth = 0; // Track mouth width
+let smoothedMouthCenterY = 0; // Track vertical position of mouth center
 
 function preload() {
   currentDeckIndex = CONFIG.defaultDeckIndex;
@@ -249,8 +252,8 @@ function draw() {
       }
     }
     
-    // Check if cards should start slowing down
-    if (cardsFallingActive && !cardsSlowingDown && !cardsFrozen) {
+    // Check if cards should start slowing down (ONLY IF CONFIGURED)
+    if (CONFIG.cardsShouldStop && cardsFallingActive && !cardsSlowingDown && !cardsFrozen) {
       const cardsFallingElapsed = millis() - cardsFallingStartTime;
       if (cardsFallingElapsed >= CONFIG.cardFallingDuration) {
         cardsSlowingDown = true;
@@ -258,8 +261,8 @@ function draw() {
       }
     }
     
-    // Check if cards should be completely frozen after slow-down
-    if (cardsSlowingDown && !cardsFrozen) {
+    // Check if cards should be completely frozen after slow-down (ONLY IF CONFIGURED)
+    if (CONFIG.cardsShouldStop && cardsSlowingDown && !cardsFrozen) {
       const slowDownElapsed = millis() - slowDownStartTime;
       if (slowDownElapsed >= CONFIG.cardSlowDownDuration) {
         cardsFrozen = true;
@@ -290,63 +293,143 @@ function draw() {
 }
 
 /**
- * Gets user's mouth opening amount from MediaPipe face tracking
- * @returns {number} Normalized mouth opening (0 = closed, 1 = fully open)
+ * Gets detailed user's mouth data from MediaPipe face tracking
+ * @returns {Object} Mouth data with opening, width, and vertical position
  */
-function getUserMouthOpening() {
+function getUserMouthData() {
   // Check if MediaPipe functions exist
   if (typeof getFaceLandmarks !== 'function') {
-    console.warn('getFaceLandmarks function not available');
-    return 0;
+    return {
+      opening: smoothedMouthOpening,
+      width: smoothedMouthWidth,
+      centerY: smoothedMouthCenterY
+    };
   }
   
   try {
     const faces = getFaceLandmarks();
     
     if (!faces || faces.length === 0) {
-      return 0;
+      return {
+        opening: smoothedMouthOpening,
+        width: smoothedMouthWidth,
+        centerY: smoothedMouthCenterY
+      };
+    }
+    
+    const face = faces[0];
+    
+    // MediaPipe Face Mesh mouth landmarks:
+    // 13: Upper lip center
+    // 14: Lower lip center
+    // 61: Left mouth corner
+    // 291: Right mouth corner
+    // 0: Nose tip (reference for vertical position)
+    
+    if (Array.isArray(face) && face.length >= 292) {
+      const upperLip = face[13];
+      const lowerLip = face[14];
+      const leftCorner = face[61];
+      const rightCorner = face[291];
+      const noseTip = face[0];
+      
+      // Get Y coordinates
+      const upperY = upperLip.y || upperLip.Y || upperLip._y;
+      const lowerY = lowerLip.y || lowerLip.Y || lowerLip._y;
+      const leftX = leftCorner.x || leftCorner.X || leftCorner._x;
+      const rightX = rightCorner.x || rightCorner.X || rightCorner._x;
+      const noseY = noseTip.y || noseTip.Y || noseTip._y;
+      
+      if (typeof upperY !== 'undefined' && typeof lowerY !== 'undefined' &&
+          typeof leftX !== 'undefined' && typeof rightX !== 'undefined' &&
+          typeof noseY !== 'undefined') {
+        
+        // Calculate mouth height (opening)
+        const mouthHeight = Math.abs(lowerY - upperY);
+        const rawOpening = constrain(map(mouthHeight, 0.01, 0.06, 0, 1), 0, 1);
+        
+        // Calculate mouth width
+        const mouthWidthRaw = Math.abs(rightX - leftX);
+        const rawWidth = constrain(map(mouthWidthRaw, 0.05, 0.15, 0, 1), 0, 1);
+        
+        // Calculate vertical position relative to nose
+        const mouthCenter = (upperY + lowerY) / 2;
+        const relativeY = mouthCenter - noseY; // Positive = below nose
+        const rawCenterY = constrain(map(relativeY, 0, 0.1, -1, 1), -1, 1);
+        
+        // Smooth all values
+        smoothedMouthOpening = lerp(smoothedMouthOpening, rawOpening, 0.3);
+        smoothedMouthWidth = lerp(smoothedMouthWidth, rawWidth, 0.3);
+        smoothedMouthCenterY = lerp(smoothedMouthCenterY, rawCenterY, 0.3);
+        
+        return {
+          opening: smoothedMouthOpening,
+          width: smoothedMouthWidth,
+          centerY: smoothedMouthCenterY
+        };
+      }
+    }
+    
+  } catch (e) {
+    console.error('Error getting mouth data:', e);
+  }
+  
+  return {
+    opening: smoothedMouthOpening,
+    width: smoothedMouthWidth,
+    centerY: smoothedMouthCenterY
+  };
+}
+
+/**
+ * Gets user's mouth opening amount from MediaPipe face tracking
+ * Returns smoothed value for natural motion
+ * @returns {number} Normalized mouth opening (0 = closed, 1 = fully open)
+ */
+function getUserMouthOpening() {
+  // Check if MediaPipe functions exist
+  if (typeof getFaceLandmarks !== 'function') {
+    return smoothedMouthOpening; // Return last known value if function unavailable
+  }
+  
+  try {
+    const faces = getFaceLandmarks();
+    
+    if (!faces || faces.length === 0) {
+      return smoothedMouthOpening; // Return last value if no face detected
     }
     
     const face = faces[0];
     
     // MediaPipe Face Mesh returns an array of 478 landmarks
-    // Each landmark has {x, y, z} properties
-    // Mouth landmarks indices:
-    // Upper lip inner top: 13
-    // Lower lip inner bottom: 14
-    // Upper lip outer top: 12
-    // Lower lip outer bottom: 15
-    
-    if (Array.isArray(face) && face.length >= 478) {
+    if (Array.isArray(face) && face.length >= 15) {
       const upperLipInner = face[13];  // Upper lip center inner
       const lowerLipInner = face[14];  // Lower lip center inner
       
-      if (upperLipInner && lowerLipInner && 
-          typeof upperLipInner.y !== 'undefined' && 
-          typeof lowerLipInner.y !== 'undefined') {
-        
+      // Try different property names
+      const upperY = upperLipInner.y || upperLipInner.Y || upperLipInner._y;
+      const lowerY = lowerLipInner.y || lowerLipInner.Y || lowerLipInner._y;
+      
+      if (typeof upperY !== 'undefined' && typeof lowerY !== 'undefined') {
         // Calculate vertical distance between lips
-        const mouthHeight = Math.abs(lowerLipInner.y - upperLipInner.y);
+        const mouthHeight = Math.abs(lowerY - upperY);
         
         // Normalize to 0-1 range
-        // Adjust these thresholds based on your camera setup
-        // Typical range: 0.01 (closed) to 0.06 (wide open)
-        const normalized = constrain(map(mouthHeight, 0.01, 0.06, 0, 1), 0, 1);
+        const rawValue = constrain(map(mouthHeight, 0.01, 0.06, 0, 1), 0, 1);
         
-        // Optional: Log for debugging
-        // console.log('Mouth height:', mouthHeight, 'Normalized:', normalized);
+        // Smooth the value for natural motion (lerp creates smooth transitions)
+        // 0.3 = smoothing factor (lower = smoother but more lag, higher = more responsive)
+        smoothedMouthOpening = lerp(smoothedMouthOpening, rawValue, 0.3);
         
-        return normalized;
+        return smoothedMouthOpening;
       }
     }
-    
-    console.warn('Face landmarks array not in expected format');
     
   } catch (e) {
     console.error('Error getting mouth opening:', e);
   }
   
-  return 0;
+  return smoothedMouthOpening; // Return last known value on error
 }
 
 /**
@@ -388,7 +471,19 @@ function createFallingCard() {
  * Updates and draws all falling cards with smooth floating motion and deceleration
  */
 function updateAndDrawFallingCards() {
+  // Calculate speed multiplier based on configuration
   let speedMultiplier = 1.0;
+  
+  if (CONFIG.cardsShouldStop || CONFIG.cardsStopAfterMessage) {
+    if (cardsSlowingDown && !cardsFrozen) {
+      const slowDownElapsed = millis() - slowDownStartTime;
+      const slowDownProgress = slowDownElapsed / CONFIG.cardSlowDownDuration;
+      speedMultiplier = 1 - pow(slowDownProgress, 3);
+    } else if (cardsFrozen) {
+      speedMultiplier = 0;
+    }
+  }
+
   if (cardsSlowingDown && !cardsFrozen) {
     const slowDownElapsed = millis() - slowDownStartTime;
     const slowDownProgress = slowDownElapsed / CONFIG.cardSlowDownDuration;
@@ -485,33 +580,55 @@ function drawSpeakingMouth(suitIndex, x, y, targetHeight, useUserMouth = false) 
   const mouthImg = mouthImages[suitIndex];
   const mouthAspectRatio = mouthImg.width / mouthImg.height;
   
-  let mouthScale, mouthYOffset, mouthAlpha;
+  let mouthWidth, mouthHeight, mouthYOffset, mouthAlpha, mouthRotation;
   
   if (useUserMouth) {
-    // USE TRACKED USER'S MOUTH
-    const userMouthOpening = getUserMouthOpening();
+    // USE TRACKED USER'S MOUTH - FULLY NATURAL BEHAVIOR
+    const mouthData = getUserMouthData();
     
-    // Map user's mouth opening to mouth scale
-    mouthScale = CONFIG.mouthMinScale + (userMouthOpening * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
-    mouthYOffset = (1 - mouthScale) * CONFIG.mouthYOffset;
+    // Vertical scaling based on mouth opening
+    // Closed mouth: 0.7, Open mouth: 1.3
+    const verticalScale = 0.7 + (mouthData.opening * 0.6);
     
-    // Optional: vary transparency based on mouth opening
-    mouthAlpha = 255 - (userMouthOpening * CONFIG.mouthTransparencyVariation);
+    // Horizontal scaling based on detected mouth width
+    // Narrow: 0.8, Wide (smiling): 1.2
+    const horizontalScale = 0.8 + (mouthData.width * 0.4);
+    
+    // Calculate dimensions
+    mouthHeight = targetHeight * verticalScale;
+    mouthWidth = mouthHeight * mouthAspectRatio * horizontalScale;
+    
+    // Vertical position: moves based on tracked position
+    // When mouth moves up (raising chin), image moves up
+    // When mouth moves down, image moves down
+    const baseOffset = 0; // Default center position
+    const verticalMovement = mouthData.centerY * 20; // ±20 pixels movement
+    mouthYOffset = baseOffset + verticalMovement + (mouthData.opening * 10); // Also moves down when opening
+    
+    // Rotation: smile causes slight tilt, frown causes opposite tilt
+    // Width change indicates smile/frown
+    const smileFactor = (mouthData.width - 0.5) * 2; // -1 to 1
+    mouthRotation = smileFactor * 0.08; // Up to ±0.08 radians tilt
+    
+    // Opacity: fully visible during tracking
+    mouthAlpha = 255;
     
   } else {
-    // ANIMATED MOUTH (original behavior)
+    // ANIMATED MOUTH (original behavior for messages)
     const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2;
-    mouthScale = CONFIG.mouthMinScale + (mouthOpenAmount * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
+    const mouthScale = CONFIG.mouthMinScale + (mouthOpenAmount * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
+    mouthHeight = targetHeight * mouthScale;
+    mouthWidth = mouthHeight * mouthAspectRatio;
     mouthYOffset = (1 - mouthScale) * CONFIG.mouthYOffset;
     mouthAlpha = 255 - (mouthOpenAmount * CONFIG.mouthTransparencyVariation);
+    mouthRotation = 0;
   }
   
-  const mouthHeight = targetHeight * mouthScale;
-  const mouthWidth = mouthHeight * mouthAspectRatio;
-  
   push();
+  translate(x, y + mouthYOffset);
+  rotate(mouthRotation);
   tint(255, mouthAlpha);
-  image(mouthImg, x, y + mouthYOffset, mouthWidth, mouthHeight);
+  image(mouthImg, 0, 0, mouthWidth, mouthHeight);
   pop();
 }
 
