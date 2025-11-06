@@ -2,36 +2,41 @@
 const DECKS = [
   {
     name: 'Jass',
-        suits: [
+    suits: [
       {
         name: 'Rose',
         image: 'Images/Jass/Jass-Spring-Rose-No-Mouth.png',
         mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
         emotion: 'Love',
-        season: 'Spring'
+        season: 'Spring',
+        introMessage: 'Hi, I am Rose'
       },
       {
         name: 'Shield',
         image: 'Images/Jass/Jass-Summer-Shield-No-Mouth.png',
         mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
         emotion: 'Joy',
-        season: 'Summer'
+        season: 'Summer',
+        introMessage: 'Hi, I am Shield'
       },
       {
         name: 'Acorn',
         image: 'Images/Jass/Jass-Autumn-Acorn-No-Mouth.png',
         mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
         emotion: 'Sadness',
-        season: 'Autumn'
+        season: 'Autumn',
+        introMessage: 'Hi, I am Acorn'
       },
       {
         name: 'Bell',
         image: 'Images/Jass/Jass-Winter-Bell-No-Mouth.png',
         mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
         emotion: 'Anger',
-        season: 'Winter'
+        season: 'Winter',
+        introMessage: 'Hi, I am Bell'
       }
     ]
+  
   }/*,
   {
     name: 'French',
@@ -73,11 +78,11 @@ const CONFIG = {
   
   // Rotation settings
   rotationSpeed: 0.005,         // Speed of circular rotation (radians per frame)
-  initialRotationDuration: 5000, // Duration of intro rotation in milliseconds (5 seconds)
+  initialRotationDuration: 3000, // Duration of intro rotation in milliseconds (5 seconds)
   
   // Suit introduction settings
   bottomSuitIntroDuration: 3000, // Duration each suit shakes and introduces itself (3 seconds)
-  shakeIntensity: 8,            // Amplitude of rattle shake in pixels
+  shakeIntensity: 5,            // Amplitude of rattle shake in pixels
   
   // Mouth animation settings
   // Faster talking

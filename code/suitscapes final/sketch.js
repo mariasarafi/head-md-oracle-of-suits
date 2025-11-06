@@ -13,7 +13,9 @@ let currentIntroSuitIndex = 0;
 let shakeOffsetX = 0;
 let shakeOffsetY = 0;
 let introductionsComplete = false;
-let showIntroMessage = true;
+let centerMessage = null;
+let centerMessageStartTime;
+let suitIntroMessage = null; // Message displayed near the introducing suit
 
 function preload() {
   currentDeckIndex = CONFIG.defaultDeckIndex;
@@ -65,6 +67,11 @@ function setup() {
   textAlign(CENTER, CENTER);
   
   startTime = millis();
+  
+  // Set initial center message
+  const deck = DECKS[currentDeckIndex];
+  centerMessage = `We are the four suit symbols of the ${deck.name} deck`;
+  centerMessageStartTime = millis();
 }
 
 function draw() {
@@ -74,9 +81,9 @@ function draw() {
     const currentTime = millis();
     const elapsedTime = currentTime - startTime;
     
-    showIntroMessage = elapsedTime < initialRotationDuration;
-    
-    if (elapsedTime >= initialRotationDuration && !timeThresholdPassed) {
+    // Clear center message after initial rotation duration
+    if (elapsedTime >= initialRotationDuration && centerMessage && !timeThresholdPassed) {
+      centerMessage = null;
       timeThresholdPassed = true;
     }
     
@@ -109,9 +116,13 @@ function draw() {
       if (introElapsed < CONFIG.bottomSuitIntroDuration) {
         shakeOffsetX = random(-CONFIG.shakeIntensity, CONFIG.shakeIntensity);
         shakeOffsetY = random(-CONFIG.shakeIntensity, CONFIG.shakeIntensity);
+        
+        // Set suit intro message from config
+        suitIntroMessage = deck.suits[currentIntroSuitIndex].introMessage;
       } else {
         shakeOffsetX = 0;
         shakeOffsetY = 0;
+        suitIntroMessage = null;
         currentIntroSuitIndex++;
         
         if (currentIntroSuitIndex < deck.suits.length) {
@@ -119,17 +130,21 @@ function draw() {
         } else {
           suitIntroActive = false;
           introductionsComplete = true;
+          // Set final center message
+          centerMessage = 'All together we are creating a card game';
+          centerMessageStartTime = millis();
         }
       }
     }
     
     drawSuitsInCircle();
     
-    if (showIntroMessage) {
-      drawIntroMessage();
+    // Draw center message if it exists
+    if (centerMessage) {
+      drawCenterMessage(centerMessage);
     }
     
-    if (suitIntroActive && !introductionsComplete) {
+    if (suitIntroMessage) {
       drawSuitGreeting();
     }
   } else {
@@ -139,20 +154,21 @@ function draw() {
   }
 }
 
-function drawIntroMessage() {
-  const deck = DECKS[currentDeckIndex];
-  
+/**
+ * Draws a centered message on the canvas
+ * @param {string} message - The text message to display
+ */
+function drawCenterMessage(message) {
   push();
   fill(0);
   textSize(32);
   textStyle(BOLD);
-  text(`We are the four suit symbols of the ${deck.name} deck`, width / 2, height / 2);
+  text(message, width / 2, height / 2);
   pop();
 }
 
 function drawSuitGreeting() {
   const deck = DECKS[currentDeckIndex];
-  const suit = deck.suits[currentIntroSuitIndex];
   
   push();
   fill(0);
@@ -171,7 +187,8 @@ function drawSuitGreeting() {
   const textX = centerX + cos(suitAngle) * textDistance;
   const textY = centerY + sin(suitAngle) * textDistance;
   
-  text(`Hi, I am ${suit.name}`, textX, textY);
+  // Use the message from config instead of hardcoded text
+  text(suitIntroMessage, textX, textY);
   pop();
 }
 
@@ -188,20 +205,16 @@ function drawSpeakingMouth(suitIndex, x, y, targetHeight) {
   const mouthImg = mouthImages[suitIndex];
   const mouthAspectRatio = mouthImg.width / mouthImg.height;
   
-  // Calculate mouth open amount using sine wave for smooth animation
-  const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2; // Range: 0 to 1
+  const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2;
   
-  // Scale mouth based on how open it should be (using config values)
   const mouthScale = CONFIG.mouthMinScale + (mouthOpenAmount * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
   
   const mouthHeight = targetHeight * mouthScale;
   const mouthWidth = mouthHeight * mouthAspectRatio;
   
-  // Vertical offset when mouth opens/closes (using config value)
   const mouthYOffset = (1 - mouthScale) * CONFIG.mouthYOffset;
   
   push();
-  // Transparency variation for more natural look (using config value)
   tint(255, 255 - (mouthOpenAmount * CONFIG.mouthTransparencyVariation));
   image(mouthImg, x, y + mouthYOffset, mouthWidth, mouthHeight);
   pop();
@@ -237,14 +250,12 @@ function drawSuitsInCircle() {
       const targetHeight = height * CONFIG.imageHeightRatio;
       const targetWidth = targetHeight * aspectRatio;
       
-      // Draw suit image
       image(img, x, y, targetWidth, targetHeight);
       
-      // Determine if mouth should be shown
-      const shouldShowMouth = showIntroMessage || isIntroducing;
+      // Show mouths when center message is displayed OR during individual intros
+      const shouldShowMouth = centerMessage !== null || isIntroducing;
       
       if (shouldShowMouth) {
-        // Use the reusable function to draw speaking mouth
         drawSpeakingMouth(i, x, y, targetHeight);
       }
     } else {
