@@ -35,9 +35,23 @@ const DECKS = [
         season: 'Winter',
         introMessage: 'Hi, I am Bell'
       }
-    ]
-  
-  }/*,
+    ],
+        // Card images for falling animation
+    cards: [
+      'Images/Jass/Cards/Jass-Autumn-C10.jpg',
+      'Images/Jass/Cards/Jass-Autumn-Acorns.jpg',
+      'Images/Jass/Cards/Jass-Autumn-CU.jpg',
+      'Images/Jass/Cards/Jass-Spring-R10.jpg',
+      'Images/Jass/Cards/Jass-Spring-RK.jpg',
+      'Images/Jass/Cards/Jass-Spring-Roses.jpg',
+      'Images/Jass/Cards/Jass-Summer-S10.jpg',
+      'Images/Jass/Cards/Jass-Summer-SK.jpg',
+      'Images/Jass/Cards/Jass-Summer-Shields.jpg',
+      'Images/Jass/Cards/Jass-Winter-B10.jpg',
+      'Images/Jass/Cards/Jass-Winter-BK.jpg',
+      'Images/Jass/Cards/Jass-Winter-Bells.jpg'
+    ]  
+  } /*,
   {
     name: 'French',
     suits: [
@@ -78,10 +92,11 @@ const CONFIG = {
   
   // Rotation settings
   rotationSpeed: 0.005,         // Speed of circular rotation (radians per frame)
-  initialRotationDuration: 3000, // Duration of intro rotation in milliseconds (5 seconds)
-  
+  initialMessageDelay: 1000,    // Delay before showing initial message in milliseconds (2 seconds)
+  initialRotationDuration: 3000, // Duration of intro rotation in milliseconds (3 seconds)
+
   // Suit introduction settings
-  bottomSuitIntroDuration: 3000, // Duration each suit shakes and introduces itself (3 seconds)
+  bottomSuitIntroDuration: 2000, // Duration each suit shakes and introduces itself (3 seconds)
   shakeIntensity: 5,            // Amplitude of rattle shake in pixels
   
   // Mouth animation settings
@@ -102,5 +117,18 @@ const CONFIG = {
   mouthMinScale: 0.7,           // Minimum mouth scale when closed (0.5 = very closed, 0.9 = slightly closed)
   mouthMaxScale: 1.0,           // Maximum mouth scale when fully open
   mouthYOffset: 5,              // Vertical movement when mouth opens/closes in pixels
-  mouthTransparencyVariation: 50 // Transparency variation (0 = no variation, 100 = full variation)
+  mouthTransparencyVariation: 50, // Transparency variation (0 = no variation, 100 = full variation)
+
+  // Falling cards settings - SMOOTH FLOATING LIKE LEAVES
+  cardHeightRatio: 0.3,        // Height of falling cards (relative to canvas height)
+  cardFallSpeed: 2,           // Slower base falling speed for gentle float
+  cardFallSpeedVariation: 0.3,  // Less variation for smoother movement
+  cardSwayAmplitude: 30,        // Horizontal sway distance (side to side)
+  cardSwayFrequency: 0.8,       // How fast cards sway (lower = slower, smoother)
+  cardRotationSpeed: 0.005,     // Slower rotation for gentle tumbling
+  cardRotationAmplitude: 0.3,   // Maximum rotation amount (radians)
+  cardSpawnInterval: 300,       // Spawn cards less frequently
+  cardSpawnCount: 2,            // Fewer cards at a time
+  cardFallingDuration: 15000,    // Duration cards fall before freezing (10 seconds)
+  cardSlowDownDuration: 2000    // Duration of smooth deceleration (2 seconds)
 };
