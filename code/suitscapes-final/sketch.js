@@ -26,6 +26,8 @@ let lastCardSpawnTime = 0;
 let mouthsStaticAfterMessage = false;
 let finalMessageShown = false;
 let continuousRotation = false;
+let trackUserMouth = false;
+let trackingMessageShown = false; // New flag for tracking message
 
 function preload() {
   currentDeckIndex = CONFIG.defaultDeckIndex;
@@ -109,10 +111,33 @@ function setup() {
   angleMode(RADIANS);
   
   startTime = millis();
+  
+  // Initialize MediaPipe
+  if (typeof setupFace === 'function') setupFace();
+  if (typeof setupVideo === 'function') setupVideo();
 }
 
 function draw() {
   background(255);
+  
+  // DEBUG: Show mouth tracking status in corner
+  if (trackUserMouth) {
+    const mouthValue = getUserMouthOpening();
+    push();
+    fill(0);
+    textSize(16);
+    textAlign(LEFT, TOP);
+    text(`Tracking: ${trackUserMouth}`, 10, 10);
+    text(`Mouth: ${mouthValue.toFixed(2)}`, 10, 30);
+    
+    // Draw a visual indicator
+    noStroke();
+    fill(255, 0, 0);
+    rect(10, 50, 100, 20);
+    fill(0, 255, 0);
+    rect(10, 50, mouthValue * 100, 20);
+    pop();
+  }
   
   if (imagesLoaded) {
     const currentTime = millis();
@@ -179,7 +204,7 @@ function draw() {
           // All introductions complete - START CONTINUOUS ROTATION IMMEDIATELY
           suitIntroActive = false;
           introductionsComplete = true;
-          continuousRotation = true; // Start rotation right away
+          continuousRotation = true;
           
           // Start cards falling immediately
           if (!cardsFallingActive) {
@@ -201,12 +226,26 @@ function draw() {
       }
     }
     
-    // Check if final message duration has passed
+    // Check if final message duration has passed - START MOUTH TRACKING & SHOW NEW MESSAGE
     if (finalMessageShown && centerMessage && centerMessageStartTime && !mouthsStaticAfterMessage) {
       const finalMessageElapsed = millis() - centerMessageStartTime;
       if (finalMessageElapsed >= CONFIG.initialRotationDuration) {
         centerMessage = null;
         mouthsStaticAfterMessage = true;
+        // START TRACKING USER'S MOUTH
+        trackUserMouth = true;
+        // SHOW TRACKING MESSAGE
+        centerMessage = 'Display tracked mouth now starts';
+        centerMessageStartTime = millis();
+        trackingMessageShown = true;
+      }
+    }
+    
+    // Clear tracking message after duration
+    if (trackingMessageShown && centerMessage && centerMessageStartTime) {
+      const trackingMessageElapsed = millis() - centerMessageStartTime;
+      if (trackingMessageElapsed >= CONFIG.initialRotationDuration) {
+        centerMessage = null;
       }
     }
     
@@ -251,6 +290,66 @@ function draw() {
 }
 
 /**
+ * Gets user's mouth opening amount from MediaPipe face tracking
+ * @returns {number} Normalized mouth opening (0 = closed, 1 = fully open)
+ */
+function getUserMouthOpening() {
+  // Check if MediaPipe functions exist
+  if (typeof getFaceLandmarks !== 'function') {
+    console.warn('getFaceLandmarks function not available');
+    return 0;
+  }
+  
+  try {
+    const faces = getFaceLandmarks();
+    
+    if (!faces || faces.length === 0) {
+      return 0;
+    }
+    
+    const face = faces[0];
+    
+    // MediaPipe Face Mesh returns an array of 478 landmarks
+    // Each landmark has {x, y, z} properties
+    // Mouth landmarks indices:
+    // Upper lip inner top: 13
+    // Lower lip inner bottom: 14
+    // Upper lip outer top: 12
+    // Lower lip outer bottom: 15
+    
+    if (Array.isArray(face) && face.length >= 478) {
+      const upperLipInner = face[13];  // Upper lip center inner
+      const lowerLipInner = face[14];  // Lower lip center inner
+      
+      if (upperLipInner && lowerLipInner && 
+          typeof upperLipInner.y !== 'undefined' && 
+          typeof lowerLipInner.y !== 'undefined') {
+        
+        // Calculate vertical distance between lips
+        const mouthHeight = Math.abs(lowerLipInner.y - upperLipInner.y);
+        
+        // Normalize to 0-1 range
+        // Adjust these thresholds based on your camera setup
+        // Typical range: 0.01 (closed) to 0.06 (wide open)
+        const normalized = constrain(map(mouthHeight, 0.01, 0.06, 0, 1), 0, 1);
+        
+        // Optional: Log for debugging
+        // console.log('Mouth height:', mouthHeight, 'Normalized:', normalized);
+        
+        return normalized;
+      }
+    }
+    
+    console.warn('Face landmarks array not in expected format');
+    
+  } catch (e) {
+    console.error('Error getting mouth opening:', e);
+  }
+  
+  return 0;
+}
+
+/**
  * Creates a new falling card object with smooth floating physics
  */
 function createFallingCard() {
@@ -273,16 +372,13 @@ function createFallingCard() {
     width: cardWidth,
     height: cardHeight,
     speed: CONFIG.cardFallSpeed + random(-CONFIG.cardFallSpeedVariation, CONFIG.cardFallSpeedVariation),
-    // Smooth horizontal movement
     swayPhase: random(TWO_PI),
     swaySpeed: random(0.5, 1.5) * CONFIG.cardSwayFrequency,
     swayAmplitude: random(0.5, 1.5) * CONFIG.cardSwayAmplitude,
-    // Smooth rotation
     rotationAngle: random(TWO_PI),
     rotationPhase: random(TWO_PI),
     rotationSpeed: random(0.3, 1.5) * CONFIG.cardRotationSpeed,
     rotationAmplitude: random(0.3, 1.0) * CONFIG.cardRotationAmplitude,
-    // Gentle vertical oscillation
     verticalOscillation: random(TWO_PI),
     verticalOscillationSpeed: random(0.01, 0.03)
   };
@@ -292,18 +388,15 @@ function createFallingCard() {
  * Updates and draws all falling cards with smooth floating motion and deceleration
  */
 function updateAndDrawFallingCards() {
-  // Calculate deceleration factor (ease-out)
   let speedMultiplier = 1.0;
   if (cardsSlowingDown && !cardsFrozen) {
     const slowDownElapsed = millis() - slowDownStartTime;
     const slowDownProgress = slowDownElapsed / CONFIG.cardSlowDownDuration;
-    // Ease-out cubic function for smooth deceleration
     speedMultiplier = 1 - pow(slowDownProgress, 3);
   } else if (cardsFrozen) {
     speedMultiplier = 0;
   }
   
-  // Only spawn new cards if not slowing down or frozen
   if (!cardsSlowingDown && !cardsFrozen && millis() - lastCardSpawnTime > CONFIG.cardSpawnInterval) {
     for (let i = 0; i < CONFIG.cardSpawnCount; i++) {
       const card = createFallingCard();
@@ -314,35 +407,28 @@ function updateAndDrawFallingCards() {
     lastCardSpawnTime = millis();
   }
   
-  // Update and draw each card
   for (let i = fallingCards.length - 1; i >= 0; i--) {
     const card = fallingCards[i];
     
-    // Update position with deceleration
     if (speedMultiplier > 0) {
-      // Smooth falling with slight vertical oscillation
       const verticalWobble = sin(card.verticalOscillation) * 0.3 * speedMultiplier;
       card.y += (card.speed + verticalWobble) * speedMultiplier;
       card.verticalOscillation += card.verticalOscillationSpeed * speedMultiplier;
       
-      // Smooth horizontal swaying (like a pendulum)
       card.swayPhase += card.swaySpeed * 0.01 * speedMultiplier;
       const swayOffset = sin(card.swayPhase) * card.swayAmplitude;
       card.x += swayOffset * 0.05 * speedMultiplier;
       
-      // Smooth rotation oscillation (pendulum-like)
       card.rotationPhase += card.rotationSpeed * speedMultiplier;
       card.rotationAngle = sin(card.rotationPhase) * card.rotationAmplitude;
     }
     
-    // Draw card with smooth transformations
     push();
     translate(card.x, card.y);
     rotate(card.rotationAngle);
     image(card.img, 0, 0, card.width, card.height);
     pop();
     
-    // Only remove cards that have fallen off screen if not frozen
     if (!cardsFrozen && card.y - card.height / 2 > height + 100) {
       fallingCards.splice(i, 1);
     }
@@ -351,7 +437,6 @@ function updateAndDrawFallingCards() {
 
 /**
  * Draws a centered message on the canvas
- * @param {string} message - The text message to display
  */
 function drawCenterMessage(message) {
   push();
@@ -392,9 +477,9 @@ function drawSuitGreeting() {
  * @param {number} x - X position of the suit
  * @param {number} y - Y position of the suit
  * @param {number} targetHeight - Height of the suit image
- * @param {boolean} isStatic - If true, mouth doesn't animate
+ * @param {boolean} useUserMouth - If true, use tracked user mouth instead of animation
  */
-function drawSpeakingMouth(suitIndex, x, y, targetHeight, isStatic = false) {
+function drawSpeakingMouth(suitIndex, x, y, targetHeight, useUserMouth = false) {
   if (!mouthImages[suitIndex]) return;
   
   const mouthImg = mouthImages[suitIndex];
@@ -402,13 +487,19 @@ function drawSpeakingMouth(suitIndex, x, y, targetHeight, isStatic = false) {
   
   let mouthScale, mouthYOffset, mouthAlpha;
   
-  if (isStatic) {
-    // Static mouth - no animation, fully visible
-    mouthScale = CONFIG.mouthMaxScale;
-    mouthYOffset = 0;
-    mouthAlpha = 255;
+  if (useUserMouth) {
+    // USE TRACKED USER'S MOUTH
+    const userMouthOpening = getUserMouthOpening();
+    
+    // Map user's mouth opening to mouth scale
+    mouthScale = CONFIG.mouthMinScale + (userMouthOpening * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
+    mouthYOffset = (1 - mouthScale) * CONFIG.mouthYOffset;
+    
+    // Optional: vary transparency based on mouth opening
+    mouthAlpha = 255 - (userMouthOpening * CONFIG.mouthTransparencyVariation);
+    
   } else {
-    // Animated mouth
+    // ANIMATED MOUTH (original behavior)
     const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2;
     mouthScale = CONFIG.mouthMinScale + (mouthOpenAmount * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
     mouthYOffset = (1 - mouthScale) * CONFIG.mouthYOffset;
@@ -456,11 +547,16 @@ function drawSuitsInCircle() {
       
       image(img, x, y, targetWidth, targetHeight);
       
-      // Show mouths when message is displayed OR during individual intros OR after final message (static)
-      const shouldShowMouth = centerMessage !== null || isIntroducing || mouthsStaticAfterMessage;
+      // Show mouths logic:
+      // - During messages: animated mouth
+      // - During individual intros: animated mouth
+      // - After final message ends: USER-TRACKED mouth
+      const shouldShowMouth = centerMessage !== null || isIntroducing || trackUserMouth;
       
       if (shouldShowMouth) {
-        drawSpeakingMouth(i, x, y, targetHeight, mouthsStaticAfterMessage);
+        // Use user's tracked mouth ONLY after tracking starts and no messages showing
+        const useTrackedMouth = trackUserMouth && !isIntroducing;
+        drawSpeakingMouth(i, x, y, targetHeight, useTrackedMouth);
       }
     } else {
       const placeholderSize = height * CONFIG.imageHeightRatio;

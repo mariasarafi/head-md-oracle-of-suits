@@ -129,6 +129,6 @@ const CONFIG = {
   cardRotationAmplitude: 0.3,   // Maximum rotation amount (radians)
   cardSpawnInterval: 300,       // Spawn cards less frequently
   cardSpawnCount: 2,            // Fewer cards at a time
-  cardFallingDuration: 15000,    // Duration cards fall before freezing (10 seconds)
+  cardFallingDuration: 20000,    // Duration cards fall before freezing (10 seconds)
   cardSlowDownDuration: 2000    // Duration of smooth deceleration (2 seconds)
 };
