@@ -1,11 +1,201 @@
 // Define the decks and their corresponding suit images
 const DECKS = [
   {
+    name: 'Hanafuda',
+    order: 0,
+    suits: [
+      {
+        name: 'Spring',
+        sorder: 0,
+        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom2.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
+        emotion: 'Love',
+        season: 'Spring',
+        introMessage: 'Hi, I am Spring'
+      },
+      {
+        name: 'Summer',
+        sorder: 1,
+        image: 'Images/Hanafuda/Hanafuda-Summer-June-peony.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
+        emotion: 'Joy',
+        season: 'Summer',
+        introMessage: 'Hi, I am Summer'
+      },
+      {
+        name: 'Autumn',
+        sorder: 2,
+        image: 'Images/Hanafuda/Hanafuda-Autumn-September-chrysanthemum.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
+        emotion: 'Sadness',
+        season: 'Autumn',
+        introMessage: 'Hi, I am Autumn'
+      },
+      {
+        name: 'Winter',
+        sorder: 3,
+        image: 'Images/Hanafuda/Hanafuda-Winter-December-paulownia.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
+        emotion: 'Anger',
+        season: 'Winter',
+        introMessage: 'Hi, I am Winter'
+      }
+    ],
+        // Card images for falling animation
+    cards: [
+      'Images/Hanafuda/Cards/Hanafuda-Spring-March-Kasu-2.png',
+      'Images/Hanafuda/Cards/Hanafuda-Spring-April-Tane.png',
+      //'Images/Hanafuda/Cards/Hanafuda-Spring-May-Tane.png',
+      //'Images/Hanafuda/Cards/Hanafuda-Summer-June-Tane.png',
+      'Images/Hanafuda/Cards/Hanafuda-Summer-July-Tane.png',
+      'Images/Hanafuda/Cards/Hanafuda-Summer-August-Tane.png',
+      //'Images/Hanafuda/Cards/Hanafuda-Autumn-September-Tane.png',
+      'Images/Hanafuda/Cards/Hanafuda-Autumn-October-Tane.png',
+      'Images/Hanafuda/Cards/Hanafuda-Autumn-November-Tane.png',
+      //'Images/Hanafuda/Cards/Hanafuda-Winter-December-Hikari.png',
+      'Images/Hanafuda/Cards/Hanafuda-Winter-January-Hikari.png',
+      'Images/Hanafuda/Cards/Hanafuda-Winter-February-Tane.png'
+    ]  
+  },
+  {
+    name: 'French',
+    order: 1,
+    suits: [
+      {
+        name: 'Spade',
+        sorder: 0,
+        image: 'Images/Bicycle/Bicycle-Spring-Spades.png',
+        sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
+        emotion: 'Love',
+        season: 'Spring',
+        introMessage: 'Hi, I am Spade'
+      },
+      {
+        name: 'Heart',
+        sorder: 1,
+        image: 'Images/Bicycle/Bicycle-Summer-Hearts.png',
+        sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
+        emotion: 'Joy',
+        season: 'Summer',
+        introMessage: 'Hi, I am Heart'
+      },
+      {
+        name: 'Club',
+        sorder: 2,
+        image: 'Images/Bicycle/Bicycle-Autumn-Clubs.png',
+        sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
+        emotion: 'Sadness',
+        season: 'Autumn',
+        introMessage: 'Hi, I am Club'
+      },
+      {
+        name: 'Diamond',
+        sorder: 3,
+        image: 'Images/Bicycle/Bicycle-Winter-Diamonds.png',
+        sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
+        emotion: 'Anger',
+        season: 'Winter',
+        introMessage: 'Hi, I am Diamond'
+      }
+    ],
+        // Card images for falling animation
+    cards: [
+      //'Images/Bicycle/Cards/Bicycle-Spring-S2.jpg',
+      'Images/Bicycle/Cards/Bicycle-Spring-SQ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Spring-SJ.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Spring-SK.jpg',
+      'Images/Bicycle/Cards/Bicycle-Summer-H10.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Summer-HJ.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Summer-HQ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Summer-HK.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Autumn-CA.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Autumn-CJ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Autumn-CQ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Autumn-CK.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Winter-D7.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Winter-DJ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Winter-DQ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Winter-DK.jpg'
+    ]  
+  },
+  {
+    name: 'Latin',
+    order: 2,
+    suits: [
+      {
+        name: 'Spade',
+        sorder:0,
+        image: 'Images/Ducale/Ducale-Spring-spade-carte-portoghesi.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
+        emotion: 'Love',
+        season: 'Spring',
+        introMessage: 'Hi, I am Spade'
+      },
+      {
+        name: 'Coppe',
+        sorder: 1,
+        image: 'Images/Ducale/Ducale-Summer-coppe-carte-spagnole.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
+        emotion: 'Joy',
+        season: 'Summer',
+        introMessage: 'Hi, I am Coppe'
+      },
+      {
+        name: 'Bastoni',
+        sorder: 2,
+        image: 'Images/Ducale/Ducale-Autumn-bastoni-carte-spagnole.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
+        emotion: 'Sadness',
+        season: 'Autumn',
+        introMessage: 'Hi, I am Bastoni'
+      },
+      {
+        name: 'Denari',
+        sorder: 3,
+        image: 'Images/Ducale/Ducale-Winter-denari-carte-spagnole.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
+        mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
+        emotion: 'Anger',
+        season: 'Winter',
+        introMessage: 'Hi, I am Denari'
+      }
+    ],
+        // Card images for falling animation
+    cards: [
+      'Images/Ducale/Cards/Ducale-Autumn-B3.jpg',
+      'Images/Ducale/Cards/Ducale-Autumn-BJ.jpg',
+      //'Images/Ducale/Cards/Ducale-Autumn-BQ.jpg',
+      'Images/Ducale/Cards/Ducale-Spring-S1.jpg',
+      //'Images/Ducale/Cards/Ducale-Spring-SJ.jpg',
+      'Images/Ducale/Cards/Ducale-Spring-SQ.jpg',
+      'Images/Ducale/Cards/Ducale-Summer-C2.jpg',
+      //'Images/Ducale/Cards/Ducale-Summer-CJ.jpg',
+      'Images/Ducale/Cards/Ducale-Summer-CK.jpg',
+      //'Images/Ducale/Cards/Ducale-Winter-P5.jpg',
+      'Images/Ducale/Cards/Ducale-Winter-PJ.jpg',
+      'Images/Ducale/Cards/Ducale-Winter-PQ.jpg'      
+    ]
+  },
+  {
     name: 'Jass',
+    order: 3,
     suits: [
       {
         name: 'Rose',
+        sorder: 0,
         image: 'Images/Jass/Jass-Spring-Rose-No-Mouth.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
         emotion: 'Love',
         season: 'Spring',
@@ -13,7 +203,9 @@ const DECKS = [
       },
       {
         name: 'Shield',
+        sorder: 1,
         image: 'Images/Jass/Jass-Summer-Shield-No-Mouth.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
         emotion: 'Joy',
         season: 'Summer',
@@ -21,7 +213,9 @@ const DECKS = [
       },
       {
         name: 'Acorn',
+        sorder: 2,
         image: 'Images/Jass/Jass-Autumn-Acorn-No-Mouth.png',
+        sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
         emotion: 'Sadness',
         season: 'Autumn',
@@ -29,7 +223,9 @@ const DECKS = [
       },
       {
         name: 'Bell',
-        image: 'Images/Jass/Jass-Winter-Bell-No-Mouth.png',
+        sorder: 3,
+        image: 'Images/Jass/Jass-Winter-Bell.png',
+        sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
         emotion: 'Anger',
         season: 'Winter',
@@ -38,48 +234,49 @@ const DECKS = [
     ],
         // Card images for falling animation
     cards: [
-      'Images/Jass/Cards/Jass-Autumn-C10.jpg',
+      //'Images/Jass/Cards/Jass-Autumn-C10.jpg',
       'Images/Jass/Cards/Jass-Autumn-Acorns.jpg',
       'Images/Jass/Cards/Jass-Autumn-CU.jpg',
-      'Images/Jass/Cards/Jass-Spring-R10.jpg',
+      'Images/Jass/Cards/Jass-Spring-RA.jpg',
       'Images/Jass/Cards/Jass-Spring-RK.jpg',
-      'Images/Jass/Cards/Jass-Spring-Roses.jpg',
+      //'Images/Jass/Cards/Jass-Spring-Roses.jpg',
       'Images/Jass/Cards/Jass-Summer-S10.jpg',
-      'Images/Jass/Cards/Jass-Summer-SK.jpg',
-      'Images/Jass/Cards/Jass-Summer-Shields.jpg',
-      'Images/Jass/Cards/Jass-Winter-B10.jpg',
-      'Images/Jass/Cards/Jass-Winter-BK.jpg',
+      'Images/Jass/Cards/Jass-Summer-SO.jpg',
+      //'Images/Jass/Cards/Jass-Summer-Shields.jpg',
+      //'Images/Jass/Cards/Jass-Winter-B10.jpg',
+      'Images/Jass/Cards/Jass-Winter-BU.jpg',
       'Images/Jass/Cards/Jass-Winter-Bells.jpg'
     ]  
-  } /*,
-  {
-    name: 'French',
-    suits: [
-      'Images/French/French-Hearts.png',
-      'Images/French/French-Diamonds.png',
-      'Images/French/French-Clubs.png',
-      'Images/French/French-Spades.png'
-    ]
-  },
-  {
-    name: 'German',
-    suits: [
-      'Images/German/German-Hearts.png',
-      'Images/German/German-Bells.png',
-      'Images/German/German-Acorns.png',
-      'Images/German/German-Leaves.png'
-    ]
-  },
-  {
-    name: 'Spanish',
-    suits: [
-      'Images/Spanish/Spanish-Cups.png',
-      'Images/Spanish/Spanish-Coins.png',
-      'Images/Spanish/Spanish-Clubs.png',
-      'Images/Spanish/Spanish-Swords.png'
-    ]
-  }*/
+  }
 ];
+
+// Audio configuration by season
+const SEASON_AUDIO = {
+  Spring: {
+    name: 'Spring',
+    file: 'Audio/Spring-birds.wav',
+    volume: 3.0,
+    rate: 1.0
+  },
+  Summer: {
+    name: 'Summer',
+    file: 'Audio/Summer-cigal.wav',
+    volume: 0.5,
+    rate: 1.0
+  },
+  Autumn: {
+    name: 'Autumn',
+    file: 'Audio/Autumn-Rain-332496-dave-girtsman.m4a',
+    volume: 0.5,
+    rate: 1.0
+  },
+  Winter: {
+    name: 'Winter',
+    file: 'Audio/Winter-Wind-Trees-502523-simon-spiers.m4a',
+    volume: 0.5,
+    rate: 1.0
+  }
+};
 
 // Configuration parameters
 const CONFIG = {
@@ -88,7 +285,7 @@ const CONFIG = {
   
   // Layout settings
   circleRadiusRatio: 0.35,      // Radius of the circular arrangement (relative to canvas height)
-  imageHeightRatio: 0.25,       // Height of suit images (relative to canvas height)
+  //imageHeightRatio: 0.25,       // Height of suit images (relative to canvas height)
   
   // Rotation settings
   rotationSpeed: 0.005,         // Speed of circular rotation (radians per frame)
@@ -121,20 +318,19 @@ const CONFIG = {
 
   // Falling cards settings - SMOOTH FLOATING LIKE LEAVES
   cardHeightRatio: 0.3,        // Height of falling cards (relative to canvas height)
-  cardFallSpeed: 2,           // Slower base falling speed for gentle float
+  
+  cardOpacity: 150,             // Opacity of falling cards (0 = invisible, 255 = fully opaque)
+  
+  cardFallSpeed: 2.5,           // Slower base falling speed for gentle float
+  
   cardFallSpeedVariation: 0.3,  // Less variation for smoother movement
   cardSwayAmplitude: 30,        // Horizontal sway distance (side to side)
-  cardSwayFrequency: 0.8,       // How fast cards sway (lower = slower, smoother)
-  cardRotationSpeed: 0.005,     // Slower rotation for gentle tumbling
+  cardSwayFrequency: 0.5,       // How fast cards sway (lower = slower, smoother)
+  cardRotationSpeed: 0.003,     // Slower rotation for gentle tumbling
   cardRotationAmplitude: 0.3,   // Maximum rotation amount (radians)
-  cardSpawnInterval: 300,       // Spawn cards less frequently
+  
+  cardSpawnInterval: 500,       // Spawn cards less frequently
   cardSpawnCount: 2,            // Fewer cards at a time
   cardFallingDuration: 20000,    // Duration cards fall before freezing (10 seconds)
-  
-  // NEW: Card falling control options
-  cardsShouldStop: false, // Set to true if you want cards to stop falling
-  cardFallingDuration: 15000, // Duration before slowing down (ms) - only used if cardsShouldStop = true
-  cardSlowDownDuration: 3000, // Duration of slow-down phase (ms) - only used if cardsShouldStop = true
-  cardsStopAfterMessage: false // Set to true to stop cards after final message appears
   
 };
