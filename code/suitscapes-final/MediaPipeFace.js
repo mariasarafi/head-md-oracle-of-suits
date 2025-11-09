@@ -1,11 +1,7 @@
 // MediaPipeFace.js — minimal helper modeled after your Hands example
 
-console.log("MediaPipeFace.js loaded");
-
-// the p5 video element used by MediaPipe Camera util
-let videoElement;
 // store the latest detection results (null = none)
-let detections = null;
+let faceDetections = null;
 // camera util instance
 let cam = null;
 // helper that will send a frame to the face model (set up in setupFace/setupVideo)
@@ -23,7 +19,7 @@ window.selfieModeActive = true;
 function _flipLandmarkX(lm) {
   if (!lm) return lm;
   if (typeof lm.x === 'number') {
-    return { x: 1 - lm.x, y: lm.y, z: lm.z, ...lm }; // preserve extra props
+    return { x: 1 - lm.x, y: lm.y, z: lm.z, ...lm };
   }
   if (Array.isArray(lm) && lm.length >= 2) {
     const copy = lm.slice();
@@ -78,7 +74,6 @@ function _flipResultsForSelfie(results) {
 async function createFaceModel(opts = {}) {
   if (window.face && faceReady) return window.face;
 
-  // Try to use an already-available instance first
   if (window.face) {
     faceReady = true;
     return window.face;
@@ -88,12 +83,10 @@ async function createFaceModel(opts = {}) {
     const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3');
     const { FilesetResolver, FaceLandmarker } = vision;
 
-    // Resolve wasm files used by the tasks package
     const filesetResolver = await FilesetResolver.forVisionTasks(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm'
     );
 
-    // Create the FaceLandmarker (VIDEO mode for realtime)
     const model = await FaceLandmarker.createFromOptions(filesetResolver, {
       baseOptions: {
         modelAssetPath:
@@ -102,7 +95,7 @@ async function createFaceModel(opts = {}) {
       },
       runningMode: 'VIDEO',
       numFaces: opts.numFaces || 1,
-      outputFaceBlendshapes: true      // ⬅️ turn on predictions
+      outputFaceBlendshapes: true
     });
 
     window.face = model;
@@ -111,14 +104,12 @@ async function createFaceModel(opts = {}) {
   } catch (err) {
     console.warn('MediaPipeFace: failed to create FaceLandmarker via tasks-vision:', err);
 
-    // fall back to older FaceMesh/face_landmark globals if present (best-effort)
     if (window.FaceLandmarker) {
       try {
         window.face = new window.FaceLandmarker({
           locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_landmark/${f}`
         });
         faceReady = true;
-        console.log('MediaPipeFace: created instance using window.FaceLandmarker fallback.');
         return window.face;
       } catch (e) {
         console.warn('MediaPipeFace: fallback FaceLandmarker instantiation failed:', e);
@@ -130,7 +121,6 @@ async function createFaceModel(opts = {}) {
           locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
         });
         faceReady = true;
-        console.log('MediaPipeFace: created instance using window.FaceMesh fallback.');
         return window.face;
       } catch (e) {
         console.warn('MediaPipeFace: fallback FaceMesh instantiation failed:', e);
@@ -149,7 +139,6 @@ async function setupFace(opts = {}) {
       return;
     }
 
-    // Apply options if supported
     const DEFAULT_FACE_OPTIONS = {
       numFaces: 1,
       refineLandmarks: true,
@@ -162,7 +151,6 @@ async function setupFace(opts = {}) {
       try { inst.setOptions(options); } catch (e) { /* ignore */ }
     }
 
-    // Wire results if FaceMesh-style API is present; otherwise we’ll use detectForVideo
     if (typeof inst.onResults === 'function') {
       inst.onResults(onFaceResults);
       faceSendFrame = async () => {
@@ -175,7 +163,6 @@ async function setupFace(opts = {}) {
       };
     } else {
       faceSendFrame = null;
-      console.log('setupFace: onResults not found; will use detect/detectForVideo patterns.');
     }
   } catch (err) {
     console.warn('setupFace: failed to create/configure model:', err);
@@ -183,7 +170,9 @@ async function setupFace(opts = {}) {
 }
 
 // create a hidden p5 video capture and start the MediaPipe Camera util
-function setupVideo(selfieMode = true, width = 640, height = 480) {
+// Using the setupVideo in PipeHands
+
+/*function setupVideo(selfieMode = true, width = 640, height = 480) {
   window.selfieModeActive = !!selfieMode;
 
   videoElement = createCapture(VIDEO, { flipped: false });
@@ -232,25 +221,48 @@ function setupVideo(selfieMode = true, width = 640, height = 480) {
   });
 
   cam.start();
+}*/
+
+/**---------------------ADDED FOR FACE TRACKING TOGETHER WITH HANDS----------------------------*/
+/* Setup face tracking - wrapper function expected by sketch.js
+ * This configures the face model and sets up the results handler
+ */
+async function setupFaceTracking() {
+  try {
+    await setupFace({
+      numFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+      selfieMode: true
+    });
+  } catch (err) {
+    console.warn('setupFaceTracking: failed to configure face tracking:', err);
+  }
 }
+
+// Expose to window so sketch.js can call it
+window.setupFaceTracking = setupFaceTracking;
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // results handler: store the latest detections
 function onFaceResults(results) {
   if (window.selfieModeActive) {
     try {
-      detections = _flipResultsForSelfie(results);
+      faceDetections = _flipResultsForSelfie(results);
       return;
     } catch (e) {
       console.warn('Failed to flip results for selfie mode, using original results:', e);
     }
   }
-  detections = results;
+  faceDetections = results;
 }
 
 // get an array of face landmark sets in a backward-compatible way
 function getFaceLandmarks() {
-  if (!detections) return null;
-  return detections.multiFaceLandmarks || detections.faceLandmarks || detections.landmarks || null;
+  if (!faceDetections) return null;
+  return faceDetections.multiFaceLandmarks || faceDetections.faceLandmarks || faceDetections.landmarks || null;
 }
 
 // helper to let sketch know when the video is ready
@@ -325,8 +337,6 @@ function getFaceFeature(featureKeyOrIndices, faceIndex = 0, toPixels = true) {
   return out.length ? out : null;
 }
 
-
-
 // ─────────────────────────────────────────────────────────────────────────────
 // FACE GEOMETRY HELPERS (no drawing)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -359,7 +369,6 @@ function getFeatureEdges(landmarks, connectorKey) {
   return edges;
 }
 
-
 /**
  * Build ordered rings (polygons) from a MediaPipe connector graph.
  * Returns an array of rings; each ring is an array of landmarks (in order).
@@ -376,8 +385,7 @@ function getFeatureRings(featureKey, faceIndex = 0, toPixels = true) {
   if (!faces || faces.length <= faceIndex) return null;
   const landmarks = faces[faceIndex];
 
-  // 1) Build UNDIRECTED adjacency: u <-> v
-  const adj = new Map(); // idx -> Set(neighbors)
+  const adj = new Map();
   const add = (u, v) => {
     if (!adj.has(u)) adj.set(u, new Set());
     if (!adj.has(v)) adj.set(v, new Set());
@@ -391,48 +399,40 @@ function getFeatureRings(featureKey, faceIndex = 0, toPixels = true) {
   }
   if (adj.size === 0) return null;
 
-  // 2) Walk cycles in each connected component
   const visited = new Set();
   const ringsIdx = [];
 
   const walkCycleFrom = (start) => {
-    // pick an arbitrary neighbor to start the direction
     const nbs = Array.from(adj.get(start) || []);
     if (nbs.length === 0) return null;
     let prev = start;
     let cur = nbs[0];
     const ring = [start];
 
-    // mark start as visited for this ring
     visited.add(start);
 
-    // walk until we return to start or get stuck
     while (true) {
       ring.push(cur);
       visited.add(cur);
       const neighbors = Array.from(adj.get(cur) || []);
-      // choose the neighbor that is NOT the previous node
       const next = neighbors.find(x => x !== prev);
-      if (next === undefined) break;           // dead end (shouldn't happen on proper loops)
-      if (next === start) {                    // closed loop
+      if (next === undefined) break;
+      if (next === start) {
         ringsIdx.push(ring);
         return true;
       }
       prev = cur;
       cur = next;
-      if (ring.length > 2000) break;           // safety
+      if (ring.length > 2000) break;
     }
     return false;
   };
 
-  // process all components
   for (const node of adj.keys()) {
     if (visited.has(node)) continue;
-    // Try to start from a degree-2 node (prefer closed-loop behavior)
     const deg = (i) => (adj.get(i) ? adj.get(i).size : 0);
     let start = node;
     if (deg(node) !== 2) {
-      // search a degree-2 node in this component
       const stack = [node];
       const seen = new Set([node]);
       let found = null;
@@ -446,7 +446,6 @@ function getFeatureRings(featureKey, faceIndex = 0, toPixels = true) {
     walkCycleFrom(start);
   }
 
-  // 3) Map indices -> points (pixels or raw landmarks)
   const ringsPts = ringsIdx.map(ring => ring.map(idx => {
     const lm = landmarks[idx];
     return toPixels ? markToPixel(lm, videoElement.width, videoElement.height) : lm;
@@ -468,9 +467,6 @@ window.getFeatureEdges = getFeatureEdges;
 window.getFeatureRings = getFeatureRings;
 window.getFeatureOuterRing = getFeatureOuterRing;
 
-
-
-
 /**
  * Resolve a connector graph (pairs or {start,end}) into ordered rings of landmark points.
  * - featureKey: e.g. 'FACE_LANDMARKS_LIPS' or any key understood by getFaceConnectors()
@@ -490,7 +486,6 @@ function getFaceConnectorPoints(featureKey, faceIndex = 0, toPixels = true) {
   if (!faces || faces.length <= faceIndex) return null;
   const landmarks = faces[faceIndex];
 
-  // Build directed mapping start -> end for edges (supports [a,b] pairs and {start,end} objects)
   const forward = new Map();
   const reverse = new Map();
   for (const e of connectors) {
@@ -506,9 +501,7 @@ function getFaceConnectorPoints(featureKey, faceIndex = 0, toPixels = true) {
   if (forward.size === 0) return null;
 
   const ringsIdx = [];
-  // Reconstruct one or more chains/polygons until mapping exhausted
   while (forward.size > 0) {
-    // pick a start that is not anyone's end (preferred), otherwise any key
     let start = null;
     for (const k of forward.keys()) { if (!reverse.has(k)) { start = k; break; } }
     if (start === null) start = forward.keys().next().value;
@@ -520,7 +513,6 @@ function getFaceConnectorPoints(featureKey, faceIndex = 0, toPixels = true) {
       ring.push(cur);
       seen.add(cur);
       const next = forward.get(cur);
-      // remove current entry to avoid revisiting it
       forward.delete(cur);
       if (next != null) reverse.delete(next);
       cur = next;
@@ -529,7 +521,6 @@ function getFaceConnectorPoints(featureKey, faceIndex = 0, toPixels = true) {
     if (ring.length) ringsIdx.push(ring);
   }
 
-  // Map index rings -> point rings (pixels or raw landmarks)
   const ringsPts = ringsIdx.map(ring => {
     const pts = [];
     for (const idx of ring) {
@@ -545,14 +536,12 @@ function getFaceConnectorPoints(featureKey, faceIndex = 0, toPixels = true) {
 
 window.getFaceConnectorPoints = getFaceConnectorPoints;
 
-
 // feature detections
 // Return the raw MediaPipe blendshape array for a given face (or null).
 function getFaceBlendshapes(faceIndex = 0) {
-  if (!detections) return null;
-  const arr = detections.faceBlendshapes || detections.blendshapes || null;
+  if (!faceDetections) return null;
+  const arr = faceDetections.faceBlendshapes || faceDetections.blendshapes || null;
   if (!arr || !arr.length || !arr[faceIndex]) return null;
-  // Each entry has .categories: [{categoryName, score, displayName?}, ...]
   return arr[faceIndex];
 }
 

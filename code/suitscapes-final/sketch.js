@@ -6,7 +6,7 @@ let imagesLoaded = false;
 let rotationAngle = 0;
 let isRotating = true;
 let startTime;
-let timeThresholdPassed = false; // Keep for transition logic
+let timeThresholdPassed = false;
 let suitIntroActive = false;
 let suitIntroStartTime;
 let currentIntroSuitIndex = 0;
@@ -32,58 +32,43 @@ let trackingMessageShown = false;
 let smoothedMouthOpening = 0;
 let smoothedMouthWidth = 0;
 let smoothedMouthCenterY = 0;
-// Add this variable at the top with your other variables
-let maxCards = 30; // LIMIT maximum number of cards on screen
+let maxCards = 30;
 
-
-// Audio variables - DECLARE THESE BEFORE preload()
+// Audio variables
 let cardShuffleSound;
-let seasonAudio = {}; // Object to store all season sounds
+let seasonAudio = {};
 let soundStarted = false;
 
-// Add variable for wave hello image at the top with other variables
+// Wave hello variables
 let waveHelloImage;
+let waveDetected = false;
+let waveDetectionTime = 0;
+
+// Hand tracking visualization toggle
+let handTrackingEnabled = true;
 
 function preload() {
-  // Load the card shuffle sound
-  /*cardShuffleSound = loadSound('Audio/Card-Shuffle.wav', 
-    () => {
-      console.log('✓ Card shuffle sound loaded successfully');
-    },
-    (err) => {
-      console.error('✗ Failed to load card shuffle sound:', err);
-    }
-  );*/
-
   // Load Wave Hello image
   waveHelloImage = loadImage('Images/Wave-Hello.png',
-    () => {
-      console.log('✓ Wave Hello image loaded successfully');
-    },
-    (err) => {
-      console.error('✗ Failed to load Wave Hello image:', err);
-    }
+    () => console.log('✓ Wave Hello image loaded'),
+    (err) => console.error('✗ Failed to load Wave Hello image:', err)
   );
 
-  // Load all season audio files from SEASON_AUDIO configuration
+  // Load all season audio files
   const seasons = Object.keys(SEASON_AUDIO);
   for (let season of seasons) {
     const audioConfig = SEASON_AUDIO[season];
     
     seasonAudio[season] = loadSound(
       audioConfig.file,
-      () => {
-        console.log(`✓ ${audioConfig.name} audio loaded successfully`);
-      },
-      (err) => {
-        console.error(`✗ Failed to load ${audioConfig.name} audio:`, err);
-      }
+      () => console.log(`✓ ${audioConfig.name} audio loaded`),
+      (err) => console.error(`✗ Failed to load ${audioConfig.name} audio:`, err)
     );
   }
 
   let loadedCount = 0;
   
-  // We need to load 4 suits (one from each deck) + all cards from all decks
+  // Calculate total images to load
   let totalCardImages = 0;
   for (let d = 0; d < DECKS.length; d++) {
     if (DECKS[d].cards) {
@@ -91,9 +76,7 @@ function preload() {
     }
   }
   
-  const totalImages = 4 + totalCardImages; // 4 suits + all cards
-  
-  console.log(`Loading 4 suits (one from each deck) and ${totalCardImages} cards from ${DECKS.length} decks`);
+  const totalImages = 4 + totalCardImages;
   
   // Load one suit from each deck where sorder matches deck order
   for (let d = 0; d < DECKS.length; d++) {
@@ -101,18 +84,14 @@ function preload() {
     const suit = deck.suits.find(s => s.sorder === deck.order);
     
     if (suit) {
-      console.log(`Loading suit from deck ${deck.name}: ${suit.name} (order ${deck.order})`);
-      
       loadImage(
         suit.image,
         (img) => {
-          img.suitData = suit; // ← ADD THIS LINE to store suit data with image
+          img.suitData = suit;
           suitImages[d] = img;
           loadedCount++;
-          console.log(`✓ Loaded suit ${d}: ${suit.name} from ${deck.name}`);
           if (loadedCount === totalImages) {
             imagesLoaded = true;
-            console.log('All images loaded!');
           }
         },
         (err) => {
@@ -131,11 +110,8 @@ function preload() {
   let cardIndex = 0;
   for (let d = 0; d < DECKS.length; d++) {
     const currentDeck = DECKS[d];
-    console.log(`Loading cards from deck: ${currentDeck.name}`);
     
     if (currentDeck.cards && Array.isArray(currentDeck.cards)) {
-      console.log(`  - ${currentDeck.cards.length} cards in this deck`);
-      
       for (let i = 0; i < currentDeck.cards.length; i++) {
         const cardPath = currentDeck.cards[i];
         const currentCardIndex = cardIndex;
@@ -147,7 +123,6 @@ function preload() {
             loadedCount++;
             if (loadedCount === totalImages) {
               imagesLoaded = true;
-              console.log(`All ${cardImages.length} cards loaded successfully!`);
             }
           },
           (err) => {
@@ -162,11 +137,9 @@ function preload() {
         cardIndex++;
       }
     } else {
-      console.warn(`Deck ${currentDeck.name} has no cards array or it's not an array`);
+      console.warn(`Deck ${currentDeck.name} has no cards array`);
     }
   }
-  
-  console.log(`Total cards to load: ${cardIndex}`);
 }
 
 function setup() {
@@ -174,19 +147,21 @@ function setup() {
   imageMode(CENTER);
   angleMode(RADIANS);
   
+  // Delay MediaPipe initialization to ensure p5 is ready
+  setTimeout(() => {
+    try {
+      setupVideo(true);
+      setupHands();
+      setupFaceTracking();
+    } catch (error) {
+      console.error('❌ ERROR initializing tracking:', error);
+    }
+  }, 500);
+  
   // Start cards falling immediately
   cardsFallingActive = true;
   cardsFallingStartTime = millis();
   lastCardSpawnTime = millis();
-
-  /* it does not work in setup because of browser autoplay policy - needs a user interaction
-  if (!soundStarted && cardShuffleSound && cardShuffleSound.isLoaded()) {
-    userStartAudio(); // Enable audio context
-    cardShuffleSound.loop();
-    cardShuffleSound.setVolume(0.5);
-    soundStarted = true;
-    console.log('🔊 Card shuffle sound playing in loop');
-  }*/
 }
 
 function draw() {
@@ -199,7 +174,7 @@ function draw() {
     // LAYER 1: Draw falling cards FIRST (background layer) with configurable opacity
     if (cardsFallingActive) {
       push();
-      tint(255, CONFIG.cardOpacity); // Use config parameter for opacity
+      tint(255, CONFIG.cardOpacity);
       updateAndDrawFallingCards();
       pop();
     }
@@ -207,12 +182,80 @@ function draw() {
     // LAYER 2: Draw the 4 suits in a circle ON TOP (foreground layer)
     drawDeckSuitsInCircle();
 
-    // LAYER 3: Draw center message "SUITSCAPES"
-    // Custom text size AND custom image size
-   // First message + image + second message (different text sizes)
-  drawCenterMessage("SUITSCAPES", 48, waveHelloImage, 120, "Wave Hello", 32);
+    // Check for wave detection to start suit introductions
+    if (!waveDetected && getWaveStatus()) {
+      waveDetected = true;
+      waveDetectionTime = millis();
+      
+      // Start the suit introduction sequence
+      suitIntroActive = true;
+      suitIntroStartTime = millis();
+      currentIntroSuitIndex = 0;
+      
+      // Stop showing the center message
+      centerMessage = null;
+    }
+    
+    // LAYER 3: Draw center message ONLY if wave not detected yet
+    if (!waveDetected) {
+      drawCenterMessage("SUITSCAPES\nWave Hello", 48, waveHelloImage, 120, "to get started", 32);
+      
+      // Show wave detected success message briefly
+      if (getWaveStatus()) {
+        push();
+        fill(0, 255, 0);
+        stroke(0);
+        strokeWeight(3);
+        textSize(48);
+        textAlign(CENTER, CENTER);
+        text("👋 Wave Detected!", width / 2, height - 100);
+        pop();
+      }
+    }
+    
+    // LAYER 4: Suit introductions (after wave detected)
+    if (suitIntroActive) {
+      const elapsed = millis() - suitIntroStartTime;
+      
+      if (currentIntroSuitIndex < 4) {
+        // Display the current suit's introduction message
+        displaySuitIntroMessage(currentIntroSuitIndex, elapsed);
+        
+        // Move to next suit after CONFIG duration
+        if (elapsed >= CONFIG.SuitIntroDuration) {
+          currentIntroSuitIndex++;
+          suitIntroStartTime = millis();
+          
+          if (currentIntroSuitIndex >= 4) {
+            // All introductions complete
+            suitIntroActive = false;
+            introductionsComplete = true;
+            
+            // Show final message
+            centerMessage = "Now open your mouth to catch the cards!";
+            centerMessageStartTime = millis();
+            finalMessageShown = true;
+          }
+        }
+      }
+    }
 
-
+    // LAYER 5: Show final message after suit introductions
+    if (finalMessageShown && centerMessage) {
+      drawCenterMessage(centerMessage, 36);
+      
+      // Hide message after CONFIG.initialMessageDelay and start mouth tracking
+      if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
+        centerMessage = null;
+        trackUserMouth = true;
+        trackingMessageShown = true;
+      }
+    }
+    
+    // LAYER 6: Draw hand landmarks (on top) - only before wave is detected
+    if (handTrackingEnabled && !waveDetected) {
+      drawHandLandmarks();
+    }
     
   } else {
     fill(0);
@@ -226,50 +269,22 @@ function draw() {
 // Start all sounds on first user interaction
 function mousePressed() {
   if (!soundStarted) {
-    userStartAudio(); // Enable audio context
+    userStartAudio();
     
-    // Start card shuffle sound
-    /*if (cardShuffleSound && cardShuffleSound.isLoaded()) {
-      cardShuffleSound.loop();
-      cardShuffleSound.setVolume(0.05);
-      cardShuffleSound.rate(0.4);
-      console.log('🔊 Card shuffle sound playing in loop');
-    } else {
-      console.warn('⚠️ Card shuffle sound not loaded');
-    }*/
-    
-    // Start all season sounds with detailed logging
     const seasons = Object.keys(SEASON_AUDIO);
-    console.log(`Attempting to play ${seasons.length} season sounds:`, seasons);
     
     for (let season of seasons) {
       const audioConfig = SEASON_AUDIO[season];
       const sound = seasonAudio[season];
       
-      console.log(`Checking ${season}:`, {
-        configExists: !!audioConfig,
-        soundExists: !!sound,
-        soundLoaded: sound ? sound.isLoaded() : false,
-        file: audioConfig.file
-      });
-      
       if (sound && sound.isLoaded()) {
         sound.loop();
         sound.setVolume(audioConfig.volume);
         sound.rate(audioConfig.rate);
-        console.log(`🔊 ${audioConfig.name} audio STARTED (volume: ${audioConfig.volume}, rate: ${audioConfig.rate})`);
-        
-        // Check if actually playing
-        setTimeout(() => {
-          console.log(`${season} isPlaying:`, sound.isPlaying());
-        }, 500);
-      } else {
-        console.error(`❌ ${season} audio NOT playing - sound not loaded properly`);
       }
     }
     
     soundStarted = true;
-    console.log('✅ All audio tracks processed');
   }
 }
 
@@ -281,7 +296,6 @@ function createFallingCard() {
   const validCards = cardImages.filter(img => img !== null && img !== undefined);
   
   if (validCards.length === 0) {
-    console.error('No valid card images available!');
     return null;
   }
   
@@ -382,18 +396,18 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
   textAlign(CENTER, CENTER);
   
   // Calculate total height needed for first message lines
-  const lineHeight = txtSize * 1.25; // 125% of text size for line spacing
+  const lineHeight = txtSize * 1.25;
   const totalTextHeight = lines.length * lineHeight;
   
   // Calculate total content height
   let totalContentHeight = totalTextHeight;
   if (img) {
-    totalContentHeight += imgSize + 20; // Add image height + gap
+    totalContentHeight += imgSize + 20;
   }
   if (message2) {
     const lines2 = message2.split('\n');
     const lineHeight2 = txtSize2 * 1.25;
-    totalContentHeight += lines2.length * lineHeight2 + 20; // Add second message height + gap
+    totalContentHeight += lines2.length * lineHeight2 + 20;
   }
   
   // Starting Y position (centered for all content)
@@ -409,7 +423,7 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
   
   // Draw optional image centered below first message
   if (img) {
-    const imgY = currentY + imgSize / 2 + 20; // 20px gap below text
+    const imgY = currentY + imgSize / 2 + 20;
     const aspectRatio = img.width / img.height;
     const imgWidth = imgSize * aspectRatio;
     image(img, width / 2, imgY, imgWidth, imgSize);
@@ -422,7 +436,7 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
     const lineHeight2 = txtSize2 * 1.25;
     
     textSize(txtSize2);
-    currentY += 20; // Gap before second message
+    currentY += 20;
     
     for (let i = 0; i < lines2.length; i++) {
       const y = currentY + (i * lineHeight2);
@@ -437,60 +451,7 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
 /**
  * Draws 4 suits in a circle, one from each deck
  */
-/**
- * Draws 4 suits in a circle, one from each deck
- */
 function drawDeckSuitsInCircle() {
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const numSuits = 4; // Always 4 suits
-  
-  const circleRadius = height * CONFIG.circleRadiusRatio;
-  const angleStep = TWO_PI / numSuits;
-  const startAngle = -PI / 2; // Start from top
-  
-  for (let i = 0; i < numSuits; i++) {
-    const angle = startAngle + (i * angleStep) + rotationAngle;
-    
-    const x = centerX + cos(angle) * circleRadius;
-    const y = centerY + sin(angle) * circleRadius;
-    
-    if (suitImages[i]) {
-      const img = suitImages[i];
-      const aspectRatio = img.width / img.height;
-      
-      // Get individual sizeRatio from stored suit data (default 0.25 if not specified)
-      const sizeRatio = (img.suitData && img.suitData.sizeRatio) ? img.suitData.sizeRatio : 0.25;
-      
-      const targetHeight = height * sizeRatio; // Use individual sizeRatio directly
-      const targetWidth = targetHeight * aspectRatio;
-      
-      // Draw suits at full opacity (foreground)
-      push();
-      tint(255, 255); // Full opacity
-      image(img, x, y, targetWidth, targetHeight);
-      pop();
-    } else {
-      // Draw placeholder if image failed to load
-      const placeholderSize = height * 0.25; // Default fallback
-      push();
-      fill(200);
-      stroke(100);
-      strokeWeight(2);
-      circle(x, y, placeholderSize);
-      fill(100);
-      textSize(12);
-      textAlign(CENTER, CENTER);
-      text('?', x, y);
-      pop();
-    }
-  }
-}
-
-/**
- * Draws suit images arranged in a circle with optional shaking effect
- */
-function drawSuitsInCircle() {
   const centerX = width / 2;
   const centerY = height / 2;
   const numSuits = 4;
@@ -509,26 +470,20 @@ function drawSuitsInCircle() {
       const img = suitImages[i];
       const aspectRatio = img.width / img.height;
       
-      // Find the matching suit from loaded suits based on order
-      let sizeRatio = 1.0; // Default
-      for (let deck of DECKS) {
-        for (let suit of deck.suits) {
-          if (suit.order === i && suit.sizeRatio !== undefined) {
-            sizeRatio = suit.sizeRatio;
-            break;
-          }
-        }
-      }
+      // Get individual sizeRatio from stored suit data (default 0.25 if not specified)
+      const sizeRatio = (img.suitData && img.suitData.sizeRatio) ? img.suitData.sizeRatio : 0.25;
       
-      const targetHeight = height * CONFIG.imageHeightRatio * sizeRatio;
+      const targetHeight = height * sizeRatio;
       const targetWidth = targetHeight * aspectRatio;
       
+      // Draw suits at full opacity (foreground)
       push();
       tint(255, 255);
       image(img, x, y, targetWidth, targetHeight);
       pop();
     } else {
-      const placeholderSize = height * CONFIG.imageHeightRatio;
+      // Draw placeholder if image failed to load
+      const placeholderSize = height * 0.25;
       push();
       fill(200);
       stroke(100);
@@ -553,6 +508,83 @@ function startRotation() {
 
 function toggleRotation() {
   isRotating = !isRotating;
+}
+
+//---------------------HAND WAVE DETECTION LOGIC------------------------------------------------------------
+// Update keyPressed function to add 'H' key toggle
+function keyPressed() {
+  // Press 'H' to toggle hand tracking visualization
+  if (key === 'h' || key === 'H') {
+    handTrackingEnabled = !handTrackingEnabled;
+  }
+  
+  // Start audio on any key press
+  if (!soundStarted) {
+    userStartAudio();
+    
+    const seasons = Object.keys(SEASON_AUDIO);
+    for (let season of seasons) {
+      const audioConfig = SEASON_AUDIO[season];
+      const sound = seasonAudio[season];
+      
+      if (sound && sound.isLoaded()) {
+        sound.loop();
+        sound.setVolume(audioConfig.volume);
+        sound.rate(audioConfig.rate);
+      }
+    }
+    
+    soundStarted = true;
+  }
+}
+
+// ---------------------SUIT INTRO LOGIC----------------------------
+/**
+ * Displays the introduction message next to the current suit being introduced
+ * @param {number} deckIndex - Index of the deck (0-3)
+ * @param {number} elapsed - Time elapsed since intro started
+ */
+function displaySuitIntroMessage(deckIndex, elapsed) {
+  // Get the deck and suit
+  const deck = DECKS[deckIndex];
+  const suit = deck.suits.find(s => s.sorder === deck.order);
+  
+  if (!suit) return;
+  
+  // Calculate shake effect for the first half of the duration
+  if (elapsed < CONFIG.SuitIntroDuration * 0.5) {
+    const shakeProgress = elapsed / (CONFIG.SuitIntroDuration * 0.5);
+    const shakeAmount = CONFIG.shakeIntensity * (1 - shakeProgress);
+    shakeOffsetX = random(-shakeAmount, shakeAmount);
+    shakeOffsetY = random(-shakeAmount, shakeAmount);
+  } else {
+    shakeOffsetX = 0;
+    shakeOffsetY = 0;
+  }
+  
+  // Calculate position of the suit in the circle
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const circleRadius = height * CONFIG.circleRadiusRatio;
+  const angleStep = TWO_PI / 4;
+  const startAngle = -PI / 2;
+  const suitAngle = startAngle + (deckIndex * angleStep) + rotationAngle;
+  
+  // Calculate message position (further out from suit)
+  const messageDistance = circleRadius * 1.5;
+  const messageX = centerX + cos(suitAngle) * messageDistance + shakeOffsetX;
+  const messageY = centerY + sin(suitAngle) * messageDistance + shakeOffsetY;
+  
+  // Display suit intro message next to the suit
+  push();
+  fill(0);
+  stroke(255);
+  strokeWeight(3);
+  textSize(32);
+  textStyle(BOLD);
+  textAlign(CENTER, CENTER);
+  text(suit.introMessage, messageX, messageY);
+  pop();
 }
 
 // ---------------------MOUTH TRACKING & DRAWING LOGIC------------------------------------------------------------
@@ -749,37 +781,6 @@ function drawProceduralMouth(x, y, targetHeight, useUserMouth = false) {
     }
   }
   
-  pop();
-}
-
-
-
-
-// ---------------------SUIT INTRO LOGIC----------------------------
-/**
- * Draws the greeting message for the currently introduced suit
- */
-function drawSuitGreeting() {
-  const deck = DECKS[currentDeckIndex];
-  
-  push();
-  fill(0);
-  textSize(28);
-  textStyle(BOLD);
-  
-  const numSuits = deck.suits.length;
-  const angleStep = TWO_PI / numSuits;
-  const startAngle = -PI / 2;
-  const suitAngle = startAngle + (currentIntroSuitIndex * angleStep) + rotationAngle;
-  
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const textDistance = height * CONFIG.circleRadiusRatio + 100;
-  
-  const textX = centerX + cos(suitAngle) * textDistance;
-  const textY = centerY + sin(suitAngle) * textDistance;
-  
-  text(suitIntroMessage, textX, textY);
   pop();
 }
 

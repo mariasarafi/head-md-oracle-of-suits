@@ -12,7 +12,7 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am Spring'
+        introMessage: 'Hi, I am Cherry Blossom'
       },
       {
         name: 'Summer',
@@ -224,7 +224,7 @@ const DECKS = [
       {
         name: 'Bell',
         sorder: 3,
-        image: 'Images/Jass/Jass-Winter-Bell.png',
+        image: 'Images/Jass/Jass-Winter-Bell-No-Mouth.png',
         sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
         emotion: 'Anger',
@@ -293,7 +293,7 @@ const CONFIG = {
   initialRotationDuration: 2000, // Duration of intro rotation in milliseconds (3 seconds)
 
   // Suit introduction settings
-  bottomSuitIntroDuration: 2000, // Duration each suit shakes and introduces itself (3 seconds)
+  SuitIntroDuration: 3000, // Duration each suit shakes and introduces itself (3 seconds)
   shakeIntensity: 5,            // Amplitude of rattle shake in pixels
   
   // Mouth animation settings
