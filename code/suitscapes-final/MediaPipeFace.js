@@ -129,47 +129,40 @@ async function createFaceModel(opts = {}) {
     throw err;
   }
 }
-
-// call this in your sketch.setup() to configure the face instance and results handler
 async function setupFace(opts = {}) {
   try {
-    const inst = await createFaceModel(opts);
-    if (!inst) {
-      console.warn('setupFace: no instance created.');
-      return;
+    // Use the createFaceModel function that's already defined above (line 77)
+    // It handles all the fallback logic properly
+    if (!window.face) {
+      await createFaceModel(opts);
     }
 
     const DEFAULT_FACE_OPTIONS = {
-      numFaces: 1,
+      maxNumFaces: 1,
       refineLandmarks: true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
       selfieMode: true
     };
     const options = Object.assign({}, DEFAULT_FACE_OPTIONS, opts);
-    if (typeof inst.setOptions === 'function') {
-      try { inst.setOptions(options); } catch (e) { /* ignore */ }
+    
+    // Only call setOptions if the method exists
+    if (window.face && typeof window.face.setOptions === 'function') {
+      window.face.setOptions(options);
     }
-
-    if (typeof inst.onResults === 'function') {
-      inst.onResults(onFaceResults);
-      faceSendFrame = async () => {
-        if (!videoElement) return;
-        try {
-          await inst.send({ image: videoElement.elt });
-        } catch (err) {
-          console.warn('face.send error:', err);
-        }
-      };
-    } else {
-      faceSendFrame = null;
+    
+    // Only call onResults if the method exists
+    if (window.face && typeof window.face.onResults === 'function') {
+      window.face.onResults(onFaceResults);
     }
+    
+    console.log('✅ Face model configured');
   } catch (err) {
-    console.warn('setupFace: failed to create/configure model:', err);
+    console.warn('setupFace: failed to configure model:', err);
   }
 }
 
-// create a hidden p5 video capture and start the MediaPipe Camera util
+// create a hidden p5 video capture and start the MediaPipe Camera util---------------------------------------
 // Using the setupVideo in PipeHands
 
 /*function setupVideo(selfieMode = true, width = 640, height = 480) {
@@ -223,6 +216,8 @@ async function setupFace(opts = {}) {
   cam.start();
 }*/
 
+
+
 /**---------------------ADDED FOR FACE TRACKING TOGETHER WITH HANDS----------------------------*/
 /* Setup face tracking - wrapper function expected by sketch.js
  * This configures the face model and sets up the results handler
@@ -241,22 +236,32 @@ async function setupFaceTracking() {
   }
 }
 
-// Expose to window so sketch.js can call it
-window.setupFaceTracking = setupFaceTracking;
+// Alias for sketch.js compatibility
+function setupFaceDetection() {
+  console.log('🔧 Setting up face detection...');
+  return setupFaceTracking().then(() => {
+    console.log('✅ Face detection setup complete');
+  }).catch(err => {
+    console.error('❌ Face detection setup failed:', err);
+    throw err;
+  });
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-
-// results handler: store the latest detections
+// Single results handler: store the latest detections
 function onFaceResults(results) {
   if (window.selfieModeActive) {
     try {
       faceDetections = _flipResultsForSelfie(results);
+      // Set window.faces for compatibility
+      window.faces = faceDetections.multiFaceLandmarks || faceDetections.faceLandmarks || null;
       return;
     } catch (e) {
       console.warn('Failed to flip results for selfie mode, using original results:', e);
     }
   }
   faceDetections = results;
+  // Set window.faces for compatibility
+  window.faces = results.multiFaceLandmarks || results.faceLandmarks || null;
 }
 
 // get an array of face landmark sets in a backward-compatible way
@@ -269,6 +274,10 @@ function getFaceLandmarks() {
 function isVideoReady() {
   return videoElement && videoElement.loadedmetadata;
 }
+
+// Expose to window so sketch.js can call it
+window.setupFaceTracking = setupFaceTracking;
+window.setupFaceDetection = setupFaceDetection;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NEW: lightweight connector access (no hard-coded indices or aliases)

@@ -309,13 +309,6 @@ const CONFIG = {
   // No transparency effect
   //mouthTransparencyVariation: 0
 
-  // Default mouth animation settings
-  mouthSpeakingSpeed: 0.015,    // Speed of mouth open/close animation (higher = faster)
-  mouthMinScale: 0.7,           // Minimum mouth scale when closed (0.5 = very closed, 0.9 = slightly closed)
-  mouthMaxScale: 1.0,           // Maximum mouth scale when fully open
-  mouthYOffset: 5,              // Vertical movement when mouth opens/closes in pixels
-  mouthTransparencyVariation: 50, // Transparency variation (0 = no variation, 100 = full variation)
-
   // Falling cards settings - SMOOTH FLOATING LIKE LEAVES
   cardHeightRatio: 0.3,        // Height of falling cards (relative to canvas height)
   

@@ -1,12 +1,14 @@
-let currentDeckIndex;
+// ==================== GLOBAL VARIABLES ====================
+
+// Image Arrays
 let suitImages = [];
-let mouthImages = [];
 let cardImages = [];
 let imagesLoaded = false;
+
+// Suit Rotation
 let rotationAngle = 0;
-let isRotating = true;
-let startTime;
-let timeThresholdPassed = false;
+
+// Suit Introduction Sequence
 let suitIntroActive = false;
 let suitIntroStartTime;
 let currentIntroSuitIndex = 0;
@@ -14,38 +16,37 @@ let shakeOffsetX = 0;
 let shakeOffsetY = 0;
 let introductionsComplete = false;
 
+// Center Messages
 let centerMessage = null;
 let centerMessageStartTime;
 
-let suitIntroMessage = null;
-
+// Falling Cards System
 let cardsFallingActive = false;
 let cardsFallingStartTime = 0;
 let fallingCards = [];
 let lastCardSpawnTime = 0;
 
-let mouthsStaticAfterMessage = false;
-let finalMessageShown = false;
-let continuousRotation = false;
+// Mouth Tracking
 let trackUserMouth = false;
-let trackingMessageShown = false;
 let smoothedMouthOpening = 0;
 let smoothedMouthWidth = 0;
 let smoothedMouthCenterY = 0;
-let maxCards = 30;
 
-// Audio variables
-let cardShuffleSound;
+// Audio
 let seasonAudio = {};
 let soundStarted = false;
 
-// Wave hello variables
+// Wave Detection
 let waveHelloImage;
 let waveDetected = false;
-let waveDetectionTime = 0;
+let handWaveHistory = [];
+let lastHandWaveDetectionTime = 0;
 
-// Hand tracking visualization toggle
+// UI Toggles
 let handTrackingEnabled = true;
+let showMouthLandmarks = true;
+
+// ==================== PRELOAD ====================
 
 function preload() {
   // Load Wave Hello image
@@ -142,6 +143,8 @@ function preload() {
   }
 }
 
+// ==================== SETUP ====================
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   imageMode(CENTER);
@@ -150,11 +153,17 @@ function setup() {
   // Delay MediaPipe initialization to ensure p5 is ready
   setTimeout(() => {
     try {
+      console.log('🚀 Starting initialization...');
       setupVideo(true);
+      console.log('✅ Video setup complete');
       setupHands();
-      setupFaceTracking();
+      console.log('✅ Hands setup complete');
+      setupFaceDetection();
+      console.log('✅ Face detection setup complete');
     } catch (error) {
       console.error('❌ ERROR initializing tracking:', error);
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
     }
   }, 500);
   
@@ -164,6 +173,8 @@ function setup() {
   lastCardSpawnTime = millis();
 }
 
+// ==================== MAIN DRAW LOOP ====================
+
 function draw() {
   background(255);
   
@@ -171,7 +182,7 @@ function draw() {
     // Rotate the suits continuously
     rotationAngle += CONFIG.rotationSpeed;
     
-    // LAYER 1: Draw falling cards FIRST (background layer) with configurable opacity
+    // LAYER 1: Draw falling cards (background layer)
     if (cardsFallingActive) {
       push();
       tint(255, CONFIG.cardOpacity);
@@ -179,13 +190,12 @@ function draw() {
       pop();
     }
     
-    // LAYER 2: Draw the 4 suits in a circle ON TOP (foreground layer)
+    // LAYER 2: Draw the 4 suits in a circle (foreground layer)
     drawDeckSuitsInCircle();
 
     // Check for wave detection to start suit introductions
-    if (!waveDetected && getWaveStatus()) {
+    if (!waveDetected && detectHandWaveGesture()) {
       waveDetected = true;
-      waveDetectionTime = millis();
       
       // Start the suit introduction sequence
       suitIntroActive = true;
@@ -194,6 +204,8 @@ function draw() {
       
       // Stop showing the center message
       centerMessage = null;
+      
+      console.log('👋 WAVE DETECTED! Starting suit introductions...');
     }
     
     // LAYER 3: Draw center message ONLY if wave not detected yet
@@ -201,7 +213,7 @@ function draw() {
       drawCenterMessage("SUITSCAPES\nWave Hello", 48, waveHelloImage, 120, "to get started", 32);
       
       // Show wave detected success message briefly
-      if (getWaveStatus()) {
+      if (detectHandWaveGesture()) {
         push();
         fill(0, 255, 0);
         stroke(0);
@@ -234,27 +246,30 @@ function draw() {
             // Show final message
             centerMessage = "Now open your mouth to catch the cards!";
             centerMessageStartTime = millis();
-            finalMessageShown = true;
           }
         }
       }
     }
 
     // LAYER 5: Show final message after suit introductions
-    if (finalMessageShown && centerMessage) {
+    if (introductionsComplete && centerMessage) {
       drawCenterMessage(centerMessage, 36);
       
-      // Hide message after CONFIG.initialMessageDelay and start mouth tracking
+      // Hide message after delay and start mouth tracking
       if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
         centerMessage = null;
         trackUserMouth = true;
-        trackingMessageShown = true;
       }
     }
     
-    // LAYER 6: Draw hand landmarks (on top) - only before wave is detected
+    // LAYER 6: Draw hand landmarks (only before wave is detected)
     if (handTrackingEnabled && !waveDetected) {
       drawHandLandmarks();
+    }
+
+    // LAYER 7: Draw mouth landmarks (only after mouth tracking starts)
+    if (showMouthLandmarks && trackUserMouth) {
+      drawMouthLandmarks();
     }
     
   } else {
@@ -265,8 +280,11 @@ function draw() {
   }
 }
 
-//---------------------SOUND LOGIC-------------------------------------------------------------------------------------
-// Start all sounds on first user interaction
+// ==================== AUDIO ====================
+
+/**
+ * Start all sounds on first user interaction
+ */
 function mousePressed() {
   if (!soundStarted) {
     userStartAudio();
@@ -285,10 +303,45 @@ function mousePressed() {
     }
     
     soundStarted = true;
+    console.log('🔊 Audio started');
   }
 }
 
-/**---------------------FALLING CARDS LOGIC--------------------------------------------------------- 
+/**
+ * Start audio on any key press
+ */
+function keyPressed() {
+  // Press 'H' to toggle hand tracking visualization
+  if (key === 'h' || key === 'H') {
+    handTrackingEnabled = !handTrackingEnabled;
+    showMouthLandmarks = !showMouthLandmarks;
+    console.log('🔄 Toggle - Hand tracking:', handTrackingEnabled, 'Mouth landmarks:', showMouthLandmarks);
+  }
+  
+  // Start audio on any key press
+  if (!soundStarted) {
+    userStartAudio();
+    
+    const seasons = Object.keys(SEASON_AUDIO);
+    for (let season of seasons) {
+      const audioConfig = SEASON_AUDIO[season];
+      const sound = seasonAudio[season];
+      
+      if (sound && sound.isLoaded()) {
+        sound.loop();
+        sound.setVolume(audioConfig.volume);
+        sound.rate(audioConfig.rate);
+      }
+    }
+    
+    soundStarted = true;
+    console.log('🔊 Audio started');
+  }
+}
+
+// ==================== FALLING CARDS ====================
+
+/**
  * Creates a new falling card object with smooth floating physics
  */
 function createFallingCard() {
@@ -328,7 +381,7 @@ function createFallingCard() {
 }
 
 /**
- * Updates and draws all falling cards with smooth floating motion and deceleration
+ * Updates and draws all falling cards with smooth floating motion
  */
 function updateAndDrawFallingCards() {
   // Spawn new cards
@@ -346,15 +399,17 @@ function updateAndDrawFallingCards() {
   for (let i = fallingCards.length - 1; i >= 0; i--) {
     const card = fallingCards[i];
     
-    // Update position and rotation
+    // Update position with vertical wobble
     const verticalWobble = sin(card.verticalOscillation) * 0.3;
     card.y += card.speed + verticalWobble;
     card.verticalOscillation += card.verticalOscillationSpeed;
     
+    // Update horizontal sway
     card.swayPhase += card.swaySpeed * 0.01;
     const swayOffset = sin(card.swayPhase) * card.swayAmplitude;
     card.x += swayOffset * 0.05;
     
+    // Update rotation
     card.rotationPhase += card.rotationSpeed;
     card.rotationAngle = sin(card.rotationPhase) * card.rotationAmplitude;
     
@@ -372,7 +427,7 @@ function updateAndDrawFallingCards() {
   }
 }
 
-// ---------------------CENTER MESSAGE LOGIC----------------------------
+// ==================== CENTER MESSAGE ====================
 
 /**
  * Draws a centered message on the canvas with optional image and second message
@@ -447,7 +502,8 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
   pop();
 }
 
-// Suits in Circle Drawing Logic-----------------------------------------------------
+// ==================== SUIT DRAWING ====================
+
 /**
  * Draws 4 suits in a circle, one from each deck
  */
@@ -470,13 +526,13 @@ function drawDeckSuitsInCircle() {
       const img = suitImages[i];
       const aspectRatio = img.width / img.height;
       
-      // Get individual sizeRatio from stored suit data (default 0.25 if not specified)
+      // Get individual sizeRatio from stored suit data
       const sizeRatio = (img.suitData && img.suitData.sizeRatio) ? img.suitData.sizeRatio : 0.25;
       
       const targetHeight = height * sizeRatio;
       const targetWidth = targetHeight * aspectRatio;
       
-      // Draw suits at full opacity (foreground)
+      // Draw suits at full opacity
       push();
       tint(255, 255);
       image(img, x, y, targetWidth, targetHeight);
@@ -498,47 +554,8 @@ function drawDeckSuitsInCircle() {
   }
 }
 
-function stopRotation() {
-  isRotating = false;
-}
+// ==================== SUIT INTRODUCTION ====================
 
-function startRotation() {
-  isRotating = true;
-}
-
-function toggleRotation() {
-  isRotating = !isRotating;
-}
-
-//---------------------HAND WAVE DETECTION LOGIC------------------------------------------------------------
-// Update keyPressed function to add 'H' key toggle
-function keyPressed() {
-  // Press 'H' to toggle hand tracking visualization
-  if (key === 'h' || key === 'H') {
-    handTrackingEnabled = !handTrackingEnabled;
-  }
-  
-  // Start audio on any key press
-  if (!soundStarted) {
-    userStartAudio();
-    
-    const seasons = Object.keys(SEASON_AUDIO);
-    for (let season of seasons) {
-      const audioConfig = SEASON_AUDIO[season];
-      const sound = seasonAudio[season];
-      
-      if (sound && sound.isLoaded()) {
-        sound.loop();
-        sound.setVolume(audioConfig.volume);
-        sound.rate(audioConfig.rate);
-      }
-    }
-    
-    soundStarted = true;
-  }
-}
-
-// ---------------------SUIT INTRO LOGIC----------------------------
 /**
  * Displays the introduction message next to the current suit being introduced
  * @param {number} deckIndex - Index of the deck (0-3)
@@ -587,13 +604,208 @@ function displaySuitIntroMessage(deckIndex, elapsed) {
   pop();
 }
 
-// ---------------------MOUTH TRACKING & DRAWING LOGIC------------------------------------------------------------
+// ==================== HAND WAVE DETECTION ====================
+
+/**
+ * Improved hand wave detection with pattern recognition
+ * Requires actual waving motion (left-right-left pattern)
+ * @returns {boolean} True if wave gesture detected
+ */
+function detectHandWaveGesture() {
+  if (!detections || !detections.multiHandLandmarks || detections.multiHandLandmarks.length === 0) {
+    handWaveHistory = [];
+    return false;
+  }
+
+  // Only check FIRST hand to avoid double-triggering
+  const hand = detections.multiHandLandmarks[0];
+  const indexTip = hand[8];
+  const wrist = hand[0];
+  
+  // 1. Hand must be raised (index finger above wrist)
+  const isHandRaised = indexTip.y < wrist.y - 0.05;
+  
+  // 2. Check if hand is open (fingers extended)
+  const handIsOpen = isHandOpen(hand);
+  
+  if (!isHandRaised || !handIsOpen) {
+    handWaveHistory = [];
+    return false;
+  }
+  
+  // 3. Track horizontal position over time
+  const now = millis();
+  handWaveHistory.push({ x: indexTip.x, time: now });
+  
+  // Keep only last 15 frames (~0.5 seconds at 30fps)
+  if (handWaveHistory.length > 15) {
+    handWaveHistory.shift();
+  }
+  
+  // 4. Need enough history to detect a pattern
+  if (handWaveHistory.length < 10) {
+    return false;
+  }
+  
+  // 5. Detect left-right-left OR right-left-right motion
+  let directionChanges = 0;
+  let lastDirection = 0;
+  let totalMovement = 0;
+  
+  for (let i = 1; i < handWaveHistory.length; i++) {
+    const movement = handWaveHistory[i].x - handWaveHistory[i - 1].x;
+    totalMovement += Math.abs(movement);
+    
+    // Ignore tiny movements
+    if (Math.abs(movement) < 0.015) continue;
+    
+    const currentDirection = movement > 0 ? 1 : -1;
+    
+    if (lastDirection !== 0 && currentDirection !== lastDirection) {
+      directionChanges++;
+    }
+    lastDirection = currentDirection;
+  }
+  
+  // 6. Wave detected: at least 2 direction changes + cooldown + significant movement
+  const cooldownPeriod = 3000; // 3 seconds between waves
+  const hasSignificantMovement = totalMovement > 0.2;
+  
+  if (directionChanges >= 2 && hasSignificantMovement && now - lastHandWaveDetectionTime > cooldownPeriod) {
+    console.log('👋 WAVE DETECTED! Direction changes:', directionChanges, 'Total movement:', totalMovement.toFixed(3));
+    lastHandWaveDetectionTime = now;
+    handWaveHistory = [];
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if hand is open (all fingers extended)
+ * @param {Array} landmarks - Hand landmarks array
+ * @returns {boolean} True if hand is open
+ */
+function isHandOpen(landmarks) {
+  const fingerTips = [4, 8, 12, 16, 20];
+  const fingerBases = [2, 6, 10, 14, 18];
+  
+  let extendedFingers = 0;
+  
+  // Check fingers (not thumb)
+  for (let i = 1; i < fingerTips.length; i++) {
+    const tip = landmarks[fingerTips[i]];
+    const base = landmarks[fingerBases[i]];
+    
+    if (tip.y < base.y) {
+      extendedFingers++;
+    }
+  }
+  
+  // Check thumb separately (horizontal movement)
+  const thumbTip = landmarks[4];
+  const thumbBase = landmarks[2];
+  if (Math.abs(thumbTip.x - thumbBase.x) > 0.05) {
+    extendedFingers++;
+  }
+  
+  return extendedFingers >= 4;
+}
+
+/**
+ * Draw hand landmarks on canvas
+ */
+function drawHandLandmarks() {
+  if (!detections || !detections.multiHandLandmarks) return;
+  
+  push();
+  
+  for (let hand of detections.multiHandLandmarks) {
+    // Draw connections
+    stroke(0, 255, 0);
+    strokeWeight(2);
+    for (let connection of HAND_CONNECTIONS) {
+      const start = hand[connection[0]];
+      const end = hand[connection[1]];
+      
+      const x1 = start.x * width;
+      const y1 = start.y * height;
+      const x2 = end.x * width;
+      const y2 = end.y * height;
+      
+      line(x1, y1, x2, y2);
+    }
+    
+    // Draw landmark points
+    for (let i = 0; i < hand.length; i++) {
+      const landmark = hand[i];
+      const x = landmark.x * width;
+      const y = landmark.y * height;
+      
+      const isTip = Object.values(FINGER_TIPS).includes(i);
+      
+      fill(isTip ? color(255, 0, 0) : color(0, 255, 0));
+      noStroke();
+      circle(x, y, isTip ? 12 : 8);
+    }
+  }
+  
+  pop();
+}
+
+// ==================== MOUTH TRACKING ====================
+
+/**
+ * Draw mouth/lips landmarks with visual overlay
+ */
+function drawMouthLandmarks() {
+  const faces = getFaceLandmarks();
+  
+  if (!faces || faces.length === 0) {
+    return;
+  }
+  
+  // Get mouth/lips rings for proper outline
+  const lipsRings = getFeatureRings('FACE_LANDMARKS_LIPS', 0, true);
+  
+  if (!lipsRings) {
+    return;
+  }
+  
+  push();
+  
+  // Draw connections (red lines)
+  stroke(255, 0, 0, 255);
+  strokeWeight(6);
+  noFill();
+  
+  for (let i = 0; i < lipsRings.length; i++) {
+    const ring = lipsRings[i];
+    beginShape();
+    for (const pt of ring) {
+      vertex(pt.x, pt.y);
+    }
+    endShape(CLOSE);
+  }
+  
+  // Draw landmark points (green circles)
+  noStroke();
+  fill(0, 255, 0, 255);
+  
+  for (const ring of lipsRings) {
+    for (const pt of ring) {
+      circle(pt.x, pt.y, 15);
+    }
+  }
+  
+  pop();
+}
+
 /**
  * Gets detailed user's mouth data from MediaPipe face tracking
  * @returns {Object} Mouth data with opening, width, and vertical position
  */
 function getUserMouthData() {
-  // Check if MediaPipe functions exist
   if (typeof getFaceLandmarks !== 'function') {
     return {
       opening: smoothedMouthOpening,
@@ -707,137 +919,7 @@ function getUserMouthOpening() {
   return smoothedMouthOpening;
 }
 
-/**
- * Draws a procedurally generated mouth using shapes (alternative to image-based mouth)
- */
-function drawProceduralMouth(x, y, targetHeight, useUserMouth = false) {
-  let mouthWidth, mouthHeight, mouthYOffset, mouthCurvature;
-  
-  if (useUserMouth) {
-    const mouthData = getUserMouthData();
-    
-    const baseMouthWidth = targetHeight * 0.2;
-    const baseMouthHeight = targetHeight * 0.08;
-    
-    mouthWidth = baseMouthWidth * (0.8 + mouthData.width * 0.4);
-    mouthHeight = baseMouthHeight * (0.5 + mouthData.opening * 1.5);
-    
-    const baseOffset = targetHeight * 0.15;
-    const verticalMovement = mouthData.centerY * 20;
-    mouthYOffset = baseOffset + verticalMovement + (mouthData.opening * 10);
-    
-    const smileFactor = (mouthData.width - 0.5) * 2;
-    mouthCurvature = smileFactor * 30;
-    
-  } else {
-    const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2;
-    
-    const baseMouthWidth = targetHeight * 0.2;
-    const baseMouthHeight = targetHeight * 0.08;
-    
-    mouthWidth = baseMouthWidth;
-    mouthHeight = baseMouthHeight * (0.5 + mouthOpenAmount * 1.0);
-    mouthYOffset = targetHeight * 0.15;
-    mouthCurvature = 0;
-  }
-  
-  push();
-  translate(x, y + mouthYOffset);
-  
-  fill(0);
-  noStroke();
-  
-  beginShape();
-  
-  const numPoints = 20;
-  
-  for (let i = 0; i <= numPoints; i++) {
-    const t = i / numPoints;
-    const xPos = map(t, 0, 1, -mouthWidth / 2, mouthWidth / 2);
-    
-    const topCurve = -mouthHeight / 2 + abs(sin(t * PI)) * (mouthHeight * 0.3);
-    const topY = topCurve + sin(t * PI) * (mouthCurvature * 0.3);
-    
-    vertex(xPos, topY);
-  }
-  
-  for (let i = numPoints; i >= 0; i--) {
-    const t = i / numPoints;
-    const xPos = map(t, 0, 1, -mouthWidth / 2, mouthWidth / 2);
-    
-    const bottomCurve = mouthHeight / 2 - abs(sin(t * PI)) * (mouthHeight * 0.2);
-    const bottomY = bottomCurve + sin(t * PI) * mouthCurvature;
-    
-    vertex(xPos, bottomY);
-  }
-  
-  endShape(CLOSE);
-  
-  if (useUserMouth) {
-    const mouthData = getUserMouthData();
-    if (mouthData.opening > 0.3) {
-      fill(0, 0, 0, 150);
-      ellipse(0, mouthHeight * 0.2, mouthWidth * 0.6, mouthHeight * 0.8);
-    }
-  }
-  
-  pop();
-}
-
-/**
- * Draws an animated speaking mouth overlay on a suit using IMAGE
- */
-function drawSpeakingMouth(suitIndex, x, y, targetHeight, useUserMouth = false) {
-  if (!mouthImages[suitIndex]) return;
-  
-  const mouthImg = mouthImages[suitIndex];
-  const mouthAspectRatio = mouthImg.width / mouthImg.height;
-  
-  let mouthWidth, mouthHeight, mouthYOffset, mouthAlpha, mouthRotation;
-  
-  if (useUserMouth) {
-    const mouthData = getUserMouthData();
-    
-    const verticalScale = 0.7 + (mouthData.opening * 0.6);
-    const horizontalScale = 0.8 + (mouthData.width * 0.4);
-    
-    mouthHeight = targetHeight * verticalScale;
-    mouthWidth = mouthHeight * mouthAspectRatio * horizontalScale;
-    
-    const baseOffset = 0;
-    const verticalMovement = mouthData.centerY * 20;
-    mouthYOffset = baseOffset + verticalMovement + (mouthData.opening * 10);
-    
-    const smileFactor = (mouthData.width - 0.5) * 2;
-    mouthRotation = smileFactor * 0.08;
-    
-    mouthAlpha = 255;
-    
-  } else {
-    const mouthOpenAmount = (sin(millis() * CONFIG.mouthSpeakingSpeed) + 1) / 2;
-    const mouthScale = CONFIG.mouthMinScale + (mouthOpenAmount * (CONFIG.mouthMaxScale - CONFIG.mouthMinScale));
-    mouthHeight = targetHeight * mouthScale;
-    mouthWidth = mouthHeight * mouthAspectRatio;
-    mouthYOffset = (1 - mouthScale) * CONFIG.mouthYOffset;
-    mouthAlpha = 255 - (mouthOpenAmount * CONFIG.mouthTransparencyVariation);
-    mouthRotation = 0;
-  }
-  
-  push();
-  translate(x, y + mouthYOffset);
-  rotate(mouthRotation);
-  tint(255, mouthAlpha);
-  image(mouthImg, 0, 0, mouthWidth, mouthHeight);
-  pop();
-}
-
-function getSuitInfo(suitIndex) {
-  const deck = DECKS[currentDeckIndex];
-  if (suitIndex >= 0 && suitIndex < deck.suits.length) {
-    return deck.suits[suitIndex];
-  }
-  return null;
-}
+// ==================== UTILITY FUNCTIONS ====================
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
