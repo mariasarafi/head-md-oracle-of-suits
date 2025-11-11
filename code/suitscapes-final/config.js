@@ -12,7 +12,7 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am Cherry Blossom'
+        introMessage: 'Hi, I am the Japanese Cherry Blossom'
       },
       {
         name: 'Summer',
@@ -70,7 +70,7 @@ const DECKS = [
         sorder: 0,
         image: 'Images/Bicycle/Bicycle-Spring-Spades.png',
         sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
-        mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
+        mouth: 'Images/Smile.png',
         emotion: 'Love',
         season: 'Spring',
         introMessage: 'Hi, I am Spade'
@@ -80,10 +80,10 @@ const DECKS = [
         sorder: 1,
         image: 'Images/Bicycle/Bicycle-Summer-Hearts.png',
         sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
-        mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
+        mouth: 'Images/Smile.png',
         emotion: 'Joy',
         season: 'Summer',
-        introMessage: 'Hi, I am Heart'
+        introMessage: 'Hi, I am the French Heart'
       },
       {
         name: 'Club',
@@ -114,16 +114,16 @@ const DECKS = [
       //'Images/Bicycle/Cards/Bicycle-Spring-SK.jpg',
       'Images/Bicycle/Cards/Bicycle-Summer-H10.jpg',
       //'Images/Bicycle/Cards/Bicycle-Summer-HJ.jpg',
-      //'Images/Bicycle/Cards/Bicycle-Summer-HQ.jpg',
-      'Images/Bicycle/Cards/Bicycle-Summer-HK.jpg',
+      'Images/Bicycle/Cards/Bicycle-Summer-HQ.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Summer-HK.jpg',
       //'Images/Bicycle/Cards/Bicycle-Autumn-CA.jpg',
-      //'Images/Bicycle/Cards/Bicycle-Autumn-CJ.jpg',
-      'Images/Bicycle/Cards/Bicycle-Autumn-CQ.jpg',
+      'Images/Bicycle/Cards/Bicycle-Autumn-CJ.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Autumn-CQ.jpg',
       'Images/Bicycle/Cards/Bicycle-Autumn-CK.jpg',
-      //'Images/Bicycle/Cards/Bicycle-Winter-D7.jpg',
+      'Images/Bicycle/Cards/Bicycle-Winter-D7.jpg',
       //'Images/Bicycle/Cards/Bicycle-Winter-DJ.jpg',
       'Images/Bicycle/Cards/Bicycle-Winter-DQ.jpg',
-      'Images/Bicycle/Cards/Bicycle-Winter-DK.jpg'
+      //'Images/Bicycle/Cards/Bicycle-Winter-DK.jpg'
     ]  
   },
   {
@@ -158,7 +158,7 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
         emotion: 'Sadness',
         season: 'Autumn',
-        introMessage: 'Hi, I am Bastoni'
+        introMessage: 'Hi, I am the Latin Bastoni'
       },
       {
         name: 'Denari',
@@ -176,12 +176,12 @@ const DECKS = [
       'Images/Ducale/Cards/Ducale-Autumn-B3.jpg',
       'Images/Ducale/Cards/Ducale-Autumn-BJ.jpg',
       //'Images/Ducale/Cards/Ducale-Autumn-BQ.jpg',
-      'Images/Ducale/Cards/Ducale-Spring-S1.jpg',
-      //'Images/Ducale/Cards/Ducale-Spring-SJ.jpg',
+      //'Images/Ducale/Cards/Ducale-Spring-S1.jpg',
+      'Images/Ducale/Cards/Ducale-Spring-SJ.jpg',
       'Images/Ducale/Cards/Ducale-Spring-SQ.jpg',
       'Images/Ducale/Cards/Ducale-Summer-C2.jpg',
-      //'Images/Ducale/Cards/Ducale-Summer-CJ.jpg',
-      'Images/Ducale/Cards/Ducale-Summer-CK.jpg',
+      'Images/Ducale/Cards/Ducale-Summer-CJ.jpg',
+      //'Images/Ducale/Cards/Ducale-Summer-CK.jpg',
       //'Images/Ducale/Cards/Ducale-Winter-P5.jpg',
       'Images/Ducale/Cards/Ducale-Winter-PJ.jpg',
       'Images/Ducale/Cards/Ducale-Winter-PQ.jpg'      
@@ -229,21 +229,21 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
         emotion: 'Anger',
         season: 'Winter',
-        introMessage: 'Hi, I am Bell'
+        introMessage: 'Hi, I am the Swiss Bell'
       }
     ],
         // Card images for falling animation
     cards: [
-      //'Images/Jass/Cards/Jass-Autumn-C10.jpg',
-      'Images/Jass/Cards/Jass-Autumn-Acorns.jpg',
+      'Images/Jass/Cards/Jass-Autumn-C10.jpg',
+      //'Images/Jass/Cards/Jass-Autumn-Acorns.jpg',
       'Images/Jass/Cards/Jass-Autumn-CU.jpg',
       'Images/Jass/Cards/Jass-Spring-RA.jpg',
-      'Images/Jass/Cards/Jass-Spring-RK.jpg',
-      //'Images/Jass/Cards/Jass-Spring-Roses.jpg',
+      //'Images/Jass/Cards/Jass-Spring-RK.jpg',
+      'Images/Jass/Cards/Jass-Spring-Roses.jpg',
       'Images/Jass/Cards/Jass-Summer-S10.jpg',
       'Images/Jass/Cards/Jass-Summer-SO.jpg',
       //'Images/Jass/Cards/Jass-Summer-Shields.jpg',
-      //'Images/Jass/Cards/Jass-Winter-B10.jpg',
+      'Images/Jass/Cards/Jass-Winter-B10.jpg',
       'Images/Jass/Cards/Jass-Winter-BU.jpg',
       'Images/Jass/Cards/Jass-Winter-Bells.jpg'
     ]  
@@ -284,11 +284,11 @@ const CONFIG = {
   defaultDeckIndex: 0,
   
   // Layout settings
-  circleRadiusRatio: 0.35,      // Radius of the circular arrangement (relative to canvas height)
+  circleRadiusRatio: 0.32,      // Radius of the circular arrangement (relative to canvas height)
   //imageHeightRatio: 0.25,       // Height of suit images (relative to canvas height)
   
   // Rotation settings
-  rotationSpeed: 0.005,         // Speed of circular rotation (radians per frame)
+  rotationSpeed: 0.01,         // Speed of circular rotation (radians per frame)
   initialMessageDelay: 1000,    // Delay before showing initial message in milliseconds (2 seconds)
   initialRotationDuration: 2000, // Duration of intro rotation in milliseconds (3 seconds)
 
@@ -312,18 +312,44 @@ const CONFIG = {
   // Falling cards settings - SMOOTH FLOATING LIKE LEAVES
   cardHeightRatio: 0.3,        // Height of falling cards (relative to canvas height)
   
-  cardOpacity: 150,             // Opacity of falling cards (0 = invisible, 255 = fully opaque)
+  cardOpacity: 200,             // Opacity of falling cards (0 = invisible, 255 = fully opaque)
   
-  cardFallSpeed: 2.5,           // Slower base falling speed for gentle float
+  cardFallSpeed: 4,           // Slower base falling speed for gentle float 2.5 medium
   
-  cardFallSpeedVariation: 0.3,  // Less variation for smoother movement
-  cardSwayAmplitude: 30,        // Horizontal sway distance (side to side)
+  cardFallSpeedVariation: 0.2,  // Less variation for smoother movement
+  cardSwayAmplitude: 40,        // Horizontal sway distance (side to side)
   cardSwayFrequency: 0.5,       // How fast cards sway (lower = slower, smoother)
   cardRotationSpeed: 0.003,     // Slower rotation for gentle tumbling
   cardRotationAmplitude: 0.3,   // Maximum rotation amount (radians)
   
-  cardSpawnInterval: 500,       // Spawn cards less frequently
-  cardSpawnCount: 2,            // Fewer cards at a time
+  cardSpawnInterval: 200,       // Spawn cards less frequently --- affects how visible background is
+  cardSpawnCount: 1,            // Fewer cards at a time
   cardFallingDuration: 20000,    // Duration cards fall before freezing (10 seconds)
   
+};
+
+// Opening messages configuration
+const OPENING_MESSAGES = [
+  {
+    text: "SUITSCAPES",
+    color: [255, 0, 0],    // White
+    size: 64,
+    style: 'bold',             // Use string instead of BOLD
+    duration: 5000             // 5 seconds
+  },
+  {
+    text: "Landscapes of Suits",
+    color: [255, 0, 0],         // Red
+    size: 48,
+    style: 'bold',            // Use string instead of NORMAL
+    duration: 5000              // 5 seconds
+  }
+];
+
+// Optional: Wave instruction message
+const WAVE_INSTRUCTION = {
+  text: "Wave Hello",
+  color: [255, 0, 0],      // Light gray
+  size: 32,
+  yOffset: 100                 // Pixels below center message
 };

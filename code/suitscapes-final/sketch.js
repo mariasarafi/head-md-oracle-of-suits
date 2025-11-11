@@ -2,6 +2,7 @@
 
 // Image Arrays
 let suitImages = [];
+let mouthImages = [];
 let cardImages = [];
 let imagesLoaded = false;
 
@@ -69,15 +70,16 @@ function preload() {
 
   let loadedCount = 0;
   
-  // Calculate total images to load
+  /// Calculate total images to load
   let totalCardImages = 0;
   for (let d = 0; d < DECKS.length; d++) {
     if (DECKS[d].cards) {
       totalCardImages += DECKS[d].cards.length;
     }
   }
-  
-  const totalImages = 4 + totalCardImages;
+
+  // suit images + mouth images
+  const totalImages = (4 * 2) + totalCardImages; // (suits + mouths) + cards
   
   // Load one suit from each deck where sorder matches deck order
   for (let d = 0; d < DECKS.length; d++) {
@@ -85,6 +87,7 @@ function preload() {
     const suit = deck.suits.find(s => s.sorder === deck.order);
     
     if (suit) {
+      // ✅ Load suit image
       loadImage(
         suit.image,
         (img) => {
@@ -98,6 +101,27 @@ function preload() {
         (err) => {
           console.error(`Failed to load suit: ${suit.name} from ${deck.name}`, err);
           suitImages[d] = null;
+          loadedCount++;
+          if (loadedCount === totalImages) {
+            imagesLoaded = true;
+          }
+        }
+      );
+      
+      // ✅ Load mouth image for this suit
+      loadImage(
+        suit.mouth,
+        (mouthImg) => {
+          mouthImages[d] = mouthImg;
+          console.log(`✓ Loaded mouth for ${deck.name} - ${suit.name}`);
+          loadedCount++;
+          if (loadedCount === totalImages) {
+            imagesLoaded = true;
+          }
+        },
+        (err) => {
+          console.error(`Failed to load mouth: ${suit.name} from ${deck.name}`, err);
+          mouthImages[d] = null;
           loadedCount++;
           if (loadedCount === totalImages) {
             imagesLoaded = true;
@@ -145,7 +169,7 @@ function preload() {
 
 // ==================== SETUP ====================
 
-function setup() {
+/*function setup() {
   createCanvas(windowWidth, windowHeight);
   imageMode(CENTER);
   angleMode(RADIANS);
@@ -168,6 +192,34 @@ function setup() {
   }, 500);
   
   // Start cards falling immediately
+  //cardsFallingActive = true;
+  //cardsFallingStartTime = millis();
+  //lastCardSpawnTime = millis();
+} */
+
+async function setup() {
+  createCanvas(windowWidth, windowHeight);
+  imageMode(CENTER);
+  angleMode(RADIANS);
+  
+  console.log('🚀 Starting initialization...');
+  
+  // Start video and hands immediately (non-blocking)
+  setupVideo(true);
+  console.log('✅ Video setup complete');
+  setupHands();
+  console.log('✅ Hands setup complete');
+  
+  // DON'T WAIT for face detection - load it in background
+  setupFaceDetection().then(() => {
+    console.log('✅ Face detection setup complete (loaded in background)');
+  }).catch(err => {
+    console.warn('⚠️ Face detection failed to load:', err);
+  });
+  
+  console.log('🎨 Animation starting (face detection loading in background)...');
+  
+  // ✅ UNCOMMENT THESE 3 LINES:
   cardsFallingActive = true;
   cardsFallingStartTime = millis();
   lastCardSpawnTime = millis();
@@ -190,42 +242,30 @@ function draw() {
       pop();
     }
     
-    // LAYER 2: Draw the 4 suits in a circle (foreground layer)
+    // LAYER 2: Draw the 4 suits in a circle (always visible)
     drawDeckSuitsInCircle();
-
-    // Check for wave detection to start suit introductions
-    if (!waveDetected && detectHandWaveGesture()) {
-      waveDetected = true;
-      
-      // Start the suit introduction sequence
-      suitIntroActive = true;
-      suitIntroStartTime = millis();
-      currentIntroSuitIndex = 0;
-      
-      // Stop showing the center message
-      centerMessage = null;
-      
-      console.log('👋 WAVE DETECTED! Starting suit introductions...');
-    }
     
-    // LAYER 3: Draw center message ONLY if wave not detected yet
+    // --- BEFORE WAVE DETECTION ---
     if (!waveDetected) {
-      drawCenterMessage("SUITSCAPES\nWave Hello", 48, waveHelloImage, 120, "to get started", 32);
+      // Display cycling opening messages
+      drawOpeningMessages(OPENING_MESSAGES, null);
       
-      // Show wave detected success message briefly
+      // Check for wave gesture (ONLY ONE CHECK)
       if (detectHandWaveGesture()) {
-        push();
-        fill(0, 255, 0);
-        stroke(0);
-        strokeWeight(3);
-        textSize(48);
-        textAlign(CENTER, CENTER);
-        text("👋 Wave Detected!", width / 2, height - 100);
-        pop();
+        waveDetected = true;
+        
+        // Start the suit introduction sequence
+        suitIntroActive = true;
+        suitIntroStartTime = millis();
+        currentIntroSuitIndex = 0;
+        
+        console.log('👋 WAVE DETECTED! Starting suit introductions...');
       }
     }
     
-    // LAYER 4: Suit introductions (after wave detected)
+    // --- AFTER WAVE DETECTION ---
+    
+    // LAYER 3: Suit introductions (after wave detected)
     if (suitIntroActive) {
       const elapsed = millis() - suitIntroStartTime;
       
@@ -244,30 +284,40 @@ function draw() {
             introductionsComplete = true;
             
             // Show final message
-            centerMessage = "Now open your mouth to catch the cards!";
+            centerMessage = "What emotion do you prefer?";
             centerMessageStartTime = millis();
+            
+            console.log('✅ All suit introductions complete!');
           }
         }
       }
     }
 
-    // LAYER 5: Show final message after suit introductions
+    // LAYER 4: Show final message after suit introductions
     if (introductionsComplete && centerMessage) {
-      drawCenterMessage(centerMessage, 36);
+      // Draw the "Show me how you feel" message
+      push();
+      fill(0); // Black text (was white on white background!)
+      textAlign(CENTER, CENTER);
+      textSize(36);
+      textFont('Georgia');
+      text(centerMessage, width / 2, height / 2);
+      pop();
       
       // Hide message after delay and start mouth tracking
       if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
         centerMessage = null;
         trackUserMouth = true;
+        console.log('👄 Starting mouth tracking...');
       }
     }
     
-    // LAYER 6: Draw hand landmarks (only before wave is detected)
+    // LAYER 5: Draw hand landmarks (only before wave is detected)
     if (handTrackingEnabled && !waveDetected) {
       drawHandLandmarks();
     }
 
-    // LAYER 7: Draw mouth landmarks (only after mouth tracking starts)
+    // LAYER 6: Draw mouth landmarks (only after mouth tracking starts)
     if (showMouthLandmarks && trackUserMouth) {
       drawMouthLandmarks();
     }
@@ -427,7 +477,58 @@ function updateAndDrawFallingCards() {
   }
 }
 
-// ==================== CENTER MESSAGE ====================
+// ==================== MESSAGES ====================
+
+function drawOpeningMessages(messages, instruction = null) {
+  if (!messages || messages.length === 0) return;
+  
+  // Calculate total cycle duration
+  const totalDuration = messages.reduce((sum, msg) => sum + msg.duration, 0);
+  
+  // Get current position in the cycle
+  const timeSinceStart = millis() % totalDuration;
+  
+  // Find which message to display
+  let accumulatedTime = 0;
+  let currentMessage = messages[0];
+  
+  for (let i = 0; i < messages.length; i++) {
+    accumulatedTime += messages[i].duration;
+    if (timeSinceStart < accumulatedTime) {
+      currentMessage = messages[i];
+      break;
+    }
+  }
+  
+  // Draw the current message
+  push();
+  fill(currentMessage.color[0], currentMessage.color[1], currentMessage.color[2]);
+  textAlign(CENTER, CENTER);
+  textSize(currentMessage.size);
+  textFont('Georgia');
+  
+  // Convert string style to p5.js constant
+  if (currentMessage.style === 'bold') {
+    textStyle(BOLD);
+  } else if (currentMessage.style === 'italic') {
+    textStyle(ITALIC);
+  } else {
+    textStyle(NORMAL);
+  }
+  
+  text(currentMessage.text, width / 2, height / 2);
+  pop();
+  
+  // Draw instruction if provided
+  if (instruction) {
+    push();
+    fill(instruction.color[0], instruction.color[1], instruction.color[2]);
+    textAlign(CENTER, CENTER);
+    textSize(instruction.size);
+    text(instruction.text, width / 2, height / 2 + instruction.yOffset);
+    pop();
+  }
+}
 
 /**
  * Draws a centered message on the canvas with optional image and second message
@@ -507,7 +608,7 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
 /**
  * Draws 4 suits in a circle, one from each deck
  */
-function drawDeckSuitsInCircle() {
+/*function drawDeckSuitsInCircle() {
   const centerX = width / 2;
   const centerY = height / 2;
   const numSuits = 4;
@@ -537,6 +638,104 @@ function drawDeckSuitsInCircle() {
       tint(255, 255);
       image(img, x, y, targetWidth, targetHeight);
       pop();
+    } else {
+      // Draw placeholder if image failed to load
+      const placeholderSize = height * 0.25;
+      push();
+      fill(200);
+      stroke(100);
+      strokeWeight(2);
+      circle(x, y, placeholderSize);
+      fill(100);
+      textSize(12);
+      textAlign(CENTER, CENTER);
+      text('?', x, y);
+      pop();
+    }
+  }
+}*/
+
+/**
+ * Draws 4 suits in a circle, one from each deck, with waving hands (only before wave detected)
+ */
+/**
+ * Draws 4 suits in a circle, one from each deck, with waving hands and mouths
+ */
+function drawDeckSuitsInCircle() {
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const numSuits = 4;
+  
+  const circleRadius = height * CONFIG.circleRadiusRatio;
+  const angleStep = TWO_PI / numSuits;
+  const startAngle = -PI / 2;
+  
+  for (let i = 0; i < numSuits; i++) {
+    const angle = startAngle + (i * angleStep) + rotationAngle;
+    
+    const x = centerX + cos(angle) * circleRadius;
+    const y = centerY + sin(angle) * circleRadius;
+    
+    if (suitImages[i]) {
+      const img = suitImages[i];
+      const aspectRatio = img.width / img.height;
+      
+      // Get individual sizeRatio from stored suit data
+      const sizeRatio = (img.suitData && img.suitData.sizeRatio) ? img.suitData.sizeRatio : 0.25;
+      
+      const targetHeight = height * sizeRatio;
+      const targetWidth = targetHeight * aspectRatio;
+      
+      // Draw suit image (base layer)
+      push();
+      tint(255, 255);
+      image(img, x, y, targetWidth, targetHeight);
+      pop();
+      
+      // ✨ Draw mouth on top of suit (if mouth tracking is active)
+      if (mouthImages[i] && trackUserMouth) {
+        push();
+        imageMode(CENTER);
+        
+        // Position mouth on the suit (centered, slightly below center)
+        const mouthYOffset = targetHeight * 0.2; // 20% below center of suit
+        
+        // Size mouth relative to suit size
+        const mouthSize = targetHeight * 0.35; // Mouth is 35% of suit height
+        
+        tint(255, 255); // Full opacity
+        image(mouthImages[i], x, y + mouthYOffset, mouthSize, mouthSize);
+        pop();
+      }
+      
+      // ✨ Draw waving hand (only before wave detected)
+      if (waveHelloImage && !waveDetected) {
+        push();
+        
+        // Calculate wave size based on suit HEIGHT
+        const waveSize = targetHeight * 0.45;
+        
+        // Position wave hand directly adjacent to suit (NO GAP)
+        const waveOffsetX = targetWidth / 2 + (waveSize / 2);
+        const waveOffsetY = -targetHeight * 0.1;
+        
+        // ENHANCED waving animation
+        const waveTime = millis() * 0.006;
+        const wavePhase = (TWO_PI / numSuits) * i;
+        
+        const waveBounce = sin(waveTime + wavePhase) * (targetHeight * 0.15);
+        const waveRotation = sin(waveTime + wavePhase) * 0.35;
+        const waveSwing = sin(waveTime + wavePhase) * 15;
+        
+        translate(x + waveOffsetX + waveSwing, y + waveOffsetY + waveBounce);
+        rotate(waveRotation);
+        
+        imageMode(CENTER);
+        image(waveHelloImage, 0, 0, waveSize, waveSize);
+        
+        pop();
+      }
+      
     } else {
       // Draw placeholder if image failed to load
       const placeholderSize = height * 0.25;
