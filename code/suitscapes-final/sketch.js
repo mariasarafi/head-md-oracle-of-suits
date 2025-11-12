@@ -47,6 +47,10 @@ let lastHandWaveDetectionTime = 0;
 let handTrackingEnabled = true;
 let showMouthLandmarks = true;
 
+// Add these to your global variables section (around line 32)
+let smoothedSmileIntensity = 0;
+//let faceBlendshapes = null;
+
 // ==================== PRELOAD ====================
 
 function preload() {
@@ -169,34 +173,6 @@ function preload() {
 
 // ==================== SETUP ====================
 
-/*function setup() {
-  createCanvas(windowWidth, windowHeight);
-  imageMode(CENTER);
-  angleMode(RADIANS);
-  
-  // Delay MediaPipe initialization to ensure p5 is ready
-  setTimeout(() => {
-    try {
-      console.log('🚀 Starting initialization...');
-      setupVideo(true);
-      console.log('✅ Video setup complete');
-      setupHands();
-      console.log('✅ Hands setup complete');
-      setupFaceDetection();
-      console.log('✅ Face detection setup complete');
-    } catch (error) {
-      console.error('❌ ERROR initializing tracking:', error);
-      console.error('Error details:', error.message);
-      console.error('Error stack:', error.stack);
-    }
-  }, 500);
-  
-  // Start cards falling immediately
-  //cardsFallingActive = true;
-  //cardsFallingStartTime = millis();
-  //lastCardSpawnTime = millis();
-} */
-
 async function setup() {
   createCanvas(windowWidth, windowHeight);
   imageMode(CENTER);
@@ -317,9 +293,26 @@ function draw() {
       drawHandLandmarks();
     }
 
-    // LAYER 6: Draw mouth landmarks (only after mouth tracking starts)
+    // LAYER 6: Draw mouth landmarks (after wave detected) and start emotions recognition
     if (showMouthLandmarks && trackUserMouth) {
-      drawMouthLandmarks();
+      drawMouthLandmarks(); 
+      // Smile detection and debug message
+      const smileData = detectSmile();
+     
+      if (smileData.isSmiling) {
+         // Get array of suit objects from suitImages
+        const suitsArray = suitImages
+          .filter(img => img && img.suitData)
+          .map(img => img.suitData);
+
+        // Find the landscape path for Joy
+        const joyLandscapePath = getSuitLandscapeByEmotion(suitsArray, 'Joy');
+        if (joyLandscapePath) {
+          console.debug("Landscape for Joy:", joyLandscapePath);
+          // You can now load/display the landscape image if needed
+          // Example: joyLandscapeImg = loadImage(joyLandscapePath);
+        } 
+      }
     }
     
   } else {
@@ -604,57 +597,6 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
 }
 
 // ==================== SUIT DRAWING ====================
-
-/**
- * Draws 4 suits in a circle, one from each deck
- */
-/*function drawDeckSuitsInCircle() {
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const numSuits = 4;
-  
-  const circleRadius = height * CONFIG.circleRadiusRatio;
-  const angleStep = TWO_PI / numSuits;
-  const startAngle = -PI / 2;
-  
-  for (let i = 0; i < numSuits; i++) {
-    const angle = startAngle + (i * angleStep) + rotationAngle;
-    
-    const x = centerX + cos(angle) * circleRadius;
-    const y = centerY + sin(angle) * circleRadius;
-    
-    if (suitImages[i]) {
-      const img = suitImages[i];
-      const aspectRatio = img.width / img.height;
-      
-      // Get individual sizeRatio from stored suit data
-      const sizeRatio = (img.suitData && img.suitData.sizeRatio) ? img.suitData.sizeRatio : 0.25;
-      
-      const targetHeight = height * sizeRatio;
-      const targetWidth = targetHeight * aspectRatio;
-      
-      // Draw suits at full opacity
-      push();
-      tint(255, 255);
-      image(img, x, y, targetWidth, targetHeight);
-      pop();
-    } else {
-      // Draw placeholder if image failed to load
-      const placeholderSize = height * 0.25;
-      push();
-      fill(200);
-      stroke(100);
-      strokeWeight(2);
-      circle(x, y, placeholderSize);
-      fill(100);
-      textSize(12);
-      textAlign(CENTER, CENTER);
-      text('?', x, y);
-      pop();
-    }
-  }
-}*/
-
 /**
  * Draws 4 suits in a circle, one from each deck, with waving hands (only before wave detected)
  */
@@ -697,8 +639,17 @@ function drawDeckSuitsInCircle() {
         push();
         imageMode(CENTER);
         
-        // Position mouth on the suit (centered, slightly below center)
-        const mouthYOffset = targetHeight * 0.2; // 20% below center of suit
+        // Get the suit data to check which mouth type it is
+        const suitData = suitImages[i].suitData;
+        
+        // Special positioning for kiss mouth - put it higher
+        let mouthYOffset;
+        if (suitData && suitData.mouth && suitData.mouth.includes('Kiss')) {
+          mouthYOffset = targetHeight * 0.05; // 5% below center (HIGHER for kiss)
+          console.log(`Kiss mouth detected for ${suitData.name} - positioning higher`);
+        } else {
+          mouthYOffset = targetHeight * 0.2; // 20% below center (normal position)
+        }
         
         // Size mouth relative to suit size
         const mouthSize = targetHeight * 0.35; // Mouth is 35% of suit height
@@ -803,319 +754,15 @@ function displaySuitIntroMessage(deckIndex, elapsed) {
   pop();
 }
 
-// ==================== HAND WAVE DETECTION ====================
-
 /**
- * Improved hand wave detection with pattern recognition
- * Requires actual waving motion (left-right-left pattern)
- * @returns {boolean} True if wave gesture detected
+ * Finds the landscape path for the suit with the given emotion.
+ * @param {Array} suitsArray - Array of suit objects.
+ * @param {string} emotion - The emotion to search for (e.g. 'Joy').
+ * @returns {string|null} The landscape path, or null if not found.
  */
-function detectHandWaveGesture() {
-  if (!detections || !detections.multiHandLandmarks || detections.multiHandLandmarks.length === 0) {
-    handWaveHistory = [];
-    return false;
-  }
-
-  // Only check FIRST hand to avoid double-triggering
-  const hand = detections.multiHandLandmarks[0];
-  const indexTip = hand[8];
-  const wrist = hand[0];
-  
-  // 1. Hand must be raised (index finger above wrist)
-  const isHandRaised = indexTip.y < wrist.y - 0.05;
-  
-  // 2. Check if hand is open (fingers extended)
-  const handIsOpen = isHandOpen(hand);
-  
-  if (!isHandRaised || !handIsOpen) {
-    handWaveHistory = [];
-    return false;
-  }
-  
-  // 3. Track horizontal position over time
-  const now = millis();
-  handWaveHistory.push({ x: indexTip.x, time: now });
-  
-  // Keep only last 15 frames (~0.5 seconds at 30fps)
-  if (handWaveHistory.length > 15) {
-    handWaveHistory.shift();
-  }
-  
-  // 4. Need enough history to detect a pattern
-  if (handWaveHistory.length < 10) {
-    return false;
-  }
-  
-  // 5. Detect left-right-left OR right-left-right motion
-  let directionChanges = 0;
-  let lastDirection = 0;
-  let totalMovement = 0;
-  
-  for (let i = 1; i < handWaveHistory.length; i++) {
-    const movement = handWaveHistory[i].x - handWaveHistory[i - 1].x;
-    totalMovement += Math.abs(movement);
-    
-    // Ignore tiny movements
-    if (Math.abs(movement) < 0.015) continue;
-    
-    const currentDirection = movement > 0 ? 1 : -1;
-    
-    if (lastDirection !== 0 && currentDirection !== lastDirection) {
-      directionChanges++;
-    }
-    lastDirection = currentDirection;
-  }
-  
-  // 6. Wave detected: at least 2 direction changes + cooldown + significant movement
-  const cooldownPeriod = 3000; // 3 seconds between waves
-  const hasSignificantMovement = totalMovement > 0.2;
-  
-  if (directionChanges >= 2 && hasSignificantMovement && now - lastHandWaveDetectionTime > cooldownPeriod) {
-    console.log('👋 WAVE DETECTED! Direction changes:', directionChanges, 'Total movement:', totalMovement.toFixed(3));
-    lastHandWaveDetectionTime = now;
-    handWaveHistory = [];
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * Check if hand is open (all fingers extended)
- * @param {Array} landmarks - Hand landmarks array
- * @returns {boolean} True if hand is open
- */
-function isHandOpen(landmarks) {
-  const fingerTips = [4, 8, 12, 16, 20];
-  const fingerBases = [2, 6, 10, 14, 18];
-  
-  let extendedFingers = 0;
-  
-  // Check fingers (not thumb)
-  for (let i = 1; i < fingerTips.length; i++) {
-    const tip = landmarks[fingerTips[i]];
-    const base = landmarks[fingerBases[i]];
-    
-    if (tip.y < base.y) {
-      extendedFingers++;
-    }
-  }
-  
-  // Check thumb separately (horizontal movement)
-  const thumbTip = landmarks[4];
-  const thumbBase = landmarks[2];
-  if (Math.abs(thumbTip.x - thumbBase.x) > 0.05) {
-    extendedFingers++;
-  }
-  
-  return extendedFingers >= 4;
-}
-
-/**
- * Draw hand landmarks on canvas
- */
-function drawHandLandmarks() {
-  if (!detections || !detections.multiHandLandmarks) return;
-  
-  push();
-  
-  for (let hand of detections.multiHandLandmarks) {
-    // Draw connections
-    stroke(0, 255, 0);
-    strokeWeight(2);
-    for (let connection of HAND_CONNECTIONS) {
-      const start = hand[connection[0]];
-      const end = hand[connection[1]];
-      
-      const x1 = start.x * width;
-      const y1 = start.y * height;
-      const x2 = end.x * width;
-      const y2 = end.y * height;
-      
-      line(x1, y1, x2, y2);
-    }
-    
-    // Draw landmark points
-    for (let i = 0; i < hand.length; i++) {
-      const landmark = hand[i];
-      const x = landmark.x * width;
-      const y = landmark.y * height;
-      
-      const isTip = Object.values(FINGER_TIPS).includes(i);
-      
-      fill(isTip ? color(255, 0, 0) : color(0, 255, 0));
-      noStroke();
-      circle(x, y, isTip ? 12 : 8);
-    }
-  }
-  
-  pop();
-}
-
-// ==================== MOUTH TRACKING ====================
-
-/**
- * Draw mouth/lips landmarks with visual overlay
- */
-function drawMouthLandmarks() {
-  const faces = getFaceLandmarks();
-  
-  if (!faces || faces.length === 0) {
-    return;
-  }
-  
-  // Get mouth/lips rings for proper outline
-  const lipsRings = getFeatureRings('FACE_LANDMARKS_LIPS', 0, true);
-  
-  if (!lipsRings) {
-    return;
-  }
-  
-  push();
-  
-  // Draw connections (red lines)
-  stroke(255, 0, 0, 255);
-  strokeWeight(6);
-  noFill();
-  
-  for (let i = 0; i < lipsRings.length; i++) {
-    const ring = lipsRings[i];
-    beginShape();
-    for (const pt of ring) {
-      vertex(pt.x, pt.y);
-    }
-    endShape(CLOSE);
-  }
-  
-  // Draw landmark points (green circles)
-  noStroke();
-  fill(0, 255, 0, 255);
-  
-  for (const ring of lipsRings) {
-    for (const pt of ring) {
-      circle(pt.x, pt.y, 15);
-    }
-  }
-  
-  pop();
-}
-
-/**
- * Gets detailed user's mouth data from MediaPipe face tracking
- * @returns {Object} Mouth data with opening, width, and vertical position
- */
-function getUserMouthData() {
-  if (typeof getFaceLandmarks !== 'function') {
-    return {
-      opening: smoothedMouthOpening,
-      width: smoothedMouthWidth,
-      centerY: smoothedMouthCenterY
-    };
-  }
-  
-  try {
-    const faces = getFaceLandmarks();
-    
-    if (!faces || faces.length === 0) {
-      return {
-        opening: smoothedMouthOpening,
-        width: smoothedMouthWidth,
-        centerY: smoothedMouthCenterY
-      };
-    }
-    
-    const face = faces[0];
-    
-    if (Array.isArray(face) && face.length >= 292) {
-      const upperLip = face[13];
-      const lowerLip = face[14];
-      const leftCorner = face[61];
-      const rightCorner = face[291];
-      const noseTip = face[0];
-      
-      const upperY = upperLip.y || upperLip.Y || upperLip._y;
-      const lowerY = lowerLip.y || lowerLip.Y || lowerLip._y;
-      const leftX = leftCorner.x || leftCorner.X || leftCorner._x;
-      const rightX = rightCorner.x || rightCorner.X || rightCorner._x;
-      const noseY = noseTip.y || noseTip.Y || noseTip._y;
-      
-      if (typeof upperY !== 'undefined' && typeof lowerY !== 'undefined' &&
-          typeof leftX !== 'undefined' && typeof rightX !== 'undefined' &&
-          typeof noseY !== 'undefined') {
-        
-        const mouthHeight = Math.abs(lowerY - upperY);
-        const rawOpening = constrain(map(mouthHeight, 0.01, 0.06, 0, 1), 0, 1);
-        
-        const mouthWidthRaw = Math.abs(rightX - leftX);
-        const rawWidth = constrain(map(mouthWidthRaw, 0.05, 0.15, 0, 1), 0, 1);
-        
-        const mouthCenter = (upperY + lowerY) / 2;
-        const relativeY = mouthCenter - noseY;
-        const rawCenterY = constrain(map(relativeY, 0, 0.1, -1, 1), -1, 1);
-        
-        smoothedMouthOpening = lerp(smoothedMouthOpening, rawOpening, 0.3);
-        smoothedMouthWidth = lerp(smoothedMouthWidth, rawWidth, 0.3);
-        smoothedMouthCenterY = lerp(smoothedMouthCenterY, rawCenterY, 0.3);
-        
-        return {
-          opening: smoothedMouthOpening,
-          width: smoothedMouthWidth,
-          centerY: smoothedMouthCenterY
-        };
-      }
-    }
-    
-  } catch (e) {
-    console.error('Error getting mouth data:', e);
-  }
-  
-  return {
-    opening: smoothedMouthOpening,
-    width: smoothedMouthWidth,
-    centerY: smoothedMouthCenterY
-  };
-}
-
-/**
- * Gets user's mouth opening amount from MediaPipe face tracking
- * Returns smoothed value for natural motion
- * @returns {number} Normalized mouth opening (0 = closed, 1 = fully open)
- */
-function getUserMouthOpening() {
-  if (typeof getFaceLandmarks !== 'function') {
-    return smoothedMouthOpening;
-  }
-  
-  try {
-    const faces = getFaceLandmarks();
-    
-    if (!faces || faces.length === 0) {
-      return smoothedMouthOpening;
-    }
-    
-    const face = faces[0];
-    
-    if (Array.isArray(face) && face.length >= 15) {
-      const upperLipInner = face[13];
-      const lowerLipInner = face[14];
-      
-      const upperY = upperLipInner.y || upperLipInner.Y || upperLipInner._y;
-      const lowerY = lowerLipInner.y || lowerLipInner.Y || lowerLipInner._y;
-      
-      if (typeof upperY !== 'undefined' && typeof lowerY !== 'undefined') {
-        const mouthHeight = Math.abs(lowerY - upperY);
-        const rawValue = constrain(map(mouthHeight, 0.01, 0.06, 0, 1), 0, 1);
-        smoothedMouthOpening = lerp(smoothedMouthOpening, rawValue, 0.3);
-        
-        return smoothedMouthOpening;
-      }
-    }
-    
-  } catch (e) {
-    console.error('Error getting mouth opening:', e);
-  }
-  
-  return smoothedMouthOpening;
+function getSuitLandscapeByEmotion(suitsArray, emotion) {
+  const suit = suitsArray.find(suit => suit.emotion === emotion);
+  return suit ? suit.landscape : null;
 }
 
 // ==================== UTILITY FUNCTIONS ====================

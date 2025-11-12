@@ -7,12 +7,13 @@ const DECKS = [
       {
         name: 'Spring',
         sorder: 0,
-        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom2.png',
+        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom-No-Mouth.png',
         sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
-        mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
+        mouth: 'Images/Kiss.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am the Japanese Cherry Blossom'
+        introMessage: 'Hi, I am the Japanese Cherry Blossom',
+        landscape: 'Images/Jass/Landscapes/Jass-Spring.png'
       },
       {
         name: 'Summer',
@@ -22,7 +23,8 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
         emotion: 'Joy',
         season: 'Summer',
-        introMessage: 'Hi, I am Summer'
+        introMessage: 'Hi, I am Summer',
+        landscape: 'Images/Jass/Landscapes/Jass-Summer.png'
       },
       {
         name: 'Autumn',
@@ -32,17 +34,19 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
         emotion: 'Sadness',
         season: 'Autumn',
-        introMessage: 'Hi, I am Autumn'
+        introMessage: 'Hi, I am Autumn',
+        landscape: 'Images/Jass/Landscapes/Jass-Autumn.png'
       },
       {
         name: 'Winter',
         sorder: 3,
         image: 'Images/Hanafuda/Hanafuda-Winter-December-paulownia.png',
         sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
-        mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
+        mouth: 'Images/Anger.png',
         emotion: 'Anger',
         season: 'Winter',
-        introMessage: 'Hi, I am Winter'
+        introMessage: 'Hi, I am Winter',
+        landscape: 'Images/Jass/Landscapes/Jass-Winter.png'
       }
     ],
         // Card images for falling animation
@@ -73,7 +77,8 @@ const DECKS = [
         mouth: 'Images/Smile.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am Spade'
+        introMessage: 'Hi, I am Spade',
+        landscape: 'Images/Jass/Landscapes/Jass-Spring.png'
       },
       {
         name: 'Heart',
@@ -83,7 +88,8 @@ const DECKS = [
         mouth: 'Images/Smile.png',
         emotion: 'Joy',
         season: 'Summer',
-        introMessage: 'Hi, I am the French Heart'
+        introMessage: 'Hi, I am the French Heart',
+        landscape: 'Images/Jass/Landscapes/Jass-Summer.png'
       },
       {
         name: 'Club',
@@ -93,7 +99,8 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
         emotion: 'Sadness',
         season: 'Autumn',
-        introMessage: 'Hi, I am Club'
+        introMessage: 'Hi, I am Club',
+        landscape: 'Images/Jass/Landscapes/Jass-Autumn.png'
       },
       {
         name: 'Diamond',
@@ -103,12 +110,13 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
         emotion: 'Anger',
         season: 'Winter',
-        introMessage: 'Hi, I am Diamond'
+        introMessage: 'Hi, I am Diamond',
+        landscape: 'Images/Jass/Landscapes/Jass-Winter.png'
       }
     ],
         // Card images for falling animation
     cards: [
-      //'Images/Bicycle/Cards/Bicycle-Spring-S2.jpg',
+      //'Images/Bicycle/Cards/Bicycle-Spring-S7.jpg',
       'Images/Bicycle/Cards/Bicycle-Spring-SQ.jpg',
       'Images/Bicycle/Cards/Bicycle-Spring-SJ.jpg',
       //'Images/Bicycle/Cards/Bicycle-Spring-SK.jpg',
@@ -120,7 +128,7 @@ const DECKS = [
       'Images/Bicycle/Cards/Bicycle-Autumn-CJ.jpg',
       //'Images/Bicycle/Cards/Bicycle-Autumn-CQ.jpg',
       'Images/Bicycle/Cards/Bicycle-Autumn-CK.jpg',
-      'Images/Bicycle/Cards/Bicycle-Winter-D7.jpg',
+      'Images/Bicycle/Cards/Bicycle-Winter-DA.jpg',
       //'Images/Bicycle/Cards/Bicycle-Winter-DJ.jpg',
       'Images/Bicycle/Cards/Bicycle-Winter-DQ.jpg',
       //'Images/Bicycle/Cards/Bicycle-Winter-DK.jpg'
@@ -138,7 +146,8 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am Spade'
+        introMessage: 'Hi, I am Spade',
+        landscape: 'Images/Jass/Landscapes/Jass-Spring.png'
       },
       {
         name: 'Coppe',
@@ -148,17 +157,19 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
         emotion: 'Joy',
         season: 'Summer',
-        introMessage: 'Hi, I am Coppe'
+        introMessage: 'Hi, I am Coppe',
+        landscape: 'Images/Jass/Landscapes/Jass-Summer.png'
       },
       {
         name: 'Bastoni',
         sorder: 2,
         image: 'Images/Ducale/Ducale-Autumn-bastoni-carte-spagnole.png',
         sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
-        mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
+        mouth: 'Images/Sadness.png',
         emotion: 'Sadness',
         season: 'Autumn',
-        introMessage: 'Hi, I am the Latin Bastoni'
+        introMessage: 'Hi, I am the Latin Bastoni',
+        landscape: 'Images/Jass/Landscapes/Jass-Autumn.png'
       },
       {
         name: 'Denari',
@@ -168,7 +179,8 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
         emotion: 'Anger',
         season: 'Winter',
-        introMessage: 'Hi, I am Denari'
+        introMessage: 'Hi, I am Denari',
+        landscape: 'Images/Jass/Landscapes/Jass-Winter.png'
       }
     ],
         // Card images for falling animation
@@ -199,7 +211,8 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Spring-Rose-Mouth.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am Rose'
+        introMessage: 'Hi, I am Rose', 
+        landscape: 'Images/Jass/Landscapes/Jass-Spring.png'
       },
       {
         name: 'Shield',
@@ -209,7 +222,8 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Summer-Shield-Mouth.png',
         emotion: 'Joy',
         season: 'Summer',
-        introMessage: 'Hi, I am Shield'
+        introMessage: 'Hi, I am Shield',
+        landscape: 'Images/Jass/Landscapes/Jass-Summer.png'
       },
       {
         name: 'Acorn',
@@ -219,17 +233,19 @@ const DECKS = [
         mouth: 'Images/Jass/Jass-Autumn-Acorn-Mouth.png',
         emotion: 'Sadness',
         season: 'Autumn',
-        introMessage: 'Hi, I am Acorn'
+        introMessage: 'Hi, I am Acorn',
+        landscape: 'Images/Jass/Landscapes/Jass-Autumn.png'
       },
       {
         name: 'Bell',
         sorder: 3,
         image: 'Images/Jass/Jass-Winter-Bell-No-Mouth.png',
         sizeRatio: 0.2, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
-        mouth: 'Images/Jass/Jass-Winter-Bell-Mouth.png',
+        mouth: 'Images/Anger-Mouth.png',
         emotion: 'Anger',
         season: 'Winter',
-        introMessage: 'Hi, I am the Swiss Bell'
+        introMessage: 'Hi, I am the Swiss Bell',
+        landscape: 'Images/Jass/Landscapes/Jass-Winter.png'
       }
     ],
         // Card images for falling animation

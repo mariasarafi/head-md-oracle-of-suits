@@ -252,6 +252,7 @@ function onFaceResults(results) {
   if (window.selfieModeActive) {
     try {
       faceDetections = _flipResultsForSelfie(results);
+      faceBlendshapes = results.faceBlendshapes
       // Set window.faces for compatibility
       window.faces = faceDetections.multiFaceLandmarks || faceDetections.faceLandmarks || null;
       return;
