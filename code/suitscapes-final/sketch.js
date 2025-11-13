@@ -61,20 +61,17 @@ let smileCalibrationSum = 0;
 // ==================== PRELOAD ====================
 
 function preload() {
-  // Load Wave Hello image
-  waveHelloImage = loadImage('Images/Wave-Hello.png',
-    () => console.log('✓ Wave Hello image loaded'),
-    (err) => console.error('✗ Failed to load Wave Hello image:', err)
-  );
-
+   // Load Wave Hello image
+  waveHelloImage = loadImage('Images/Wave-Hello.png');
+  
   // Load all season audio files
   const seasons = Object.keys(SEASON_AUDIO);
   for (let season of seasons) {
     const audioConfig = SEASON_AUDIO[season];
-    
+    // remove per-file success logs — keep error callback for failures if desired
     seasonAudio[season] = loadSound(
       audioConfig.file,
-      () => console.log(`✓ ${audioConfig.name} audio loaded`),
+      null,
       (err) => console.error(`✗ Failed to load ${audioConfig.name} audio:`, err)
     );
   }
@@ -124,7 +121,7 @@ function preload() {
         suit.mouth,
         (mouthImg) => {
           mouthImages[d] = mouthImg;
-          console.log(`✓ Loaded mouth for ${deck.name} - ${suit.name}`);
+          // success log removed to avoid per-file console spam
           loadedCount++;
           if (loadedCount === totalImages) {
             imagesLoaded = true;
@@ -185,24 +182,12 @@ async function setup() {
   imageMode(CENTER);
   angleMode(RADIANS);
   
-  console.log('🚀 Starting initialization...');
-  
-  // Start video and hands immediately (non-blocking)
+  // start video / hands / face detection without verbose startup logs
   setupVideo(true);
-  console.log('✅ Video setup complete');
   setupHands();
-  console.log('✅ Hands setup complete');
-  
-  // DON'T WAIT for face detection - load it in background
-  setupFaceDetection().then(() => {
-    console.log('✅ Face detection setup complete (loaded in background)');
-  }).catch(err => {
-    console.warn('⚠️ Face detection failed to load:', err);
-  });
-  
-  console.log('🎨 Animation starting (face detection loading in background)...');
-  
-  // ✅ UNCOMMENT THESE 3 LINES:
+  setupFaceDetection().catch(() => { /* face detection failed or handled elsewhere */ });
+
+  // initialize UI/animation state
   cardsFallingActive = true;
   cardsFallingStartTime = millis();
   lastCardSpawnTime = millis();
@@ -210,10 +195,6 @@ async function setup() {
   // load any saved calibrations and start missing calibrations
   loadMouthCalibrations();
   ensureMouthCalibrations();
-
-  //isCalibratingSmile = true;
-  //smileCalibrationCount = 0;
-  //smileCalibrationSum = 0;
 }
 
 // ==================== MAIN DRAW LOOP ====================
@@ -429,9 +410,7 @@ function draw() {
 function mousePressed() {
   if (!soundStarted) {
     userStartAudio();
-    
     const seasons = Object.keys(SEASON_AUDIO);
-    
     for (let season of seasons) {
       const audioConfig = SEASON_AUDIO[season];
       const sound = seasonAudio[season];
@@ -444,7 +423,7 @@ function mousePressed() {
     }
     
     soundStarted = true;
-    console.log('🔊 Audio started');
+    // removed verbose console log
   }
 }
 
@@ -456,7 +435,7 @@ function keyPressed() {
   if (key === 'h' || key === 'H') {
     handTrackingEnabled = !handTrackingEnabled;
     showMouthLandmarks = !showMouthLandmarks;
-    console.log('🔄 Toggle - Hand tracking:', handTrackingEnabled, 'Mouth landmarks:', showMouthLandmarks);
+    // removed verbose console log
   }
   
   // Start audio on any key press
@@ -476,7 +455,7 @@ function keyPressed() {
     }
     
     soundStarted = true;
-    console.log('🔊 Audio started');
+    // removed verbose console log
   }
 }
 
@@ -744,7 +723,6 @@ function drawDeckSuitsInCircle() {
         let mouthYOffset;
         if (suitData && suitData.mouth && suitData.mouth.includes('Kiss')) {
           mouthYOffset = targetHeight * 0.05; // 5% below center (HIGHER for kiss)
-          console.log(`Kiss mouth detected for ${suitData.name} - positioning higher`);
         } else {
           mouthYOffset = targetHeight * 0.2; // 20% below center (normal position)
         }
