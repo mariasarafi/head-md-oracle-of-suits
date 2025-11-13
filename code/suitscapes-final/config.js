@@ -7,7 +7,7 @@ const DECKS = [
       {
         name: 'Spring',
         sorder: 0,
-        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom-No-Mouth.png',
+        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom2.png',
         sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Kiss.png',
         emotion: 'Love',
@@ -62,7 +62,8 @@ const DECKS = [
       'Images/Hanafuda/Cards/Hanafuda-Autumn-November-Tane.png',
       //'Images/Hanafuda/Cards/Hanafuda-Winter-December-Hikari.png',
       'Images/Hanafuda/Cards/Hanafuda-Winter-January-Hikari.png',
-      'Images/Hanafuda/Cards/Hanafuda-Winter-February-Tane.png'
+      'Images/Hanafuda/Cards/Hanafuda-Winter-February-Tane.png',
+      'Images/suitscapes-intro-logo-contrast.png'
     ]  
   },
   {
@@ -131,7 +132,8 @@ const DECKS = [
       'Images/Bicycle/Cards/Bicycle-Winter-DA.jpg',
       //'Images/Bicycle/Cards/Bicycle-Winter-DJ.jpg',
       'Images/Bicycle/Cards/Bicycle-Winter-DQ.jpg',
-      //'Images/Bicycle/Cards/Bicycle-Winter-DK.jpg'
+      //'Images/Bicycle/Cards/Bicycle-Winter-DK.jpg',
+      'Images/suitscapes-intro-logo-contrast.png'
     ]  
   },
   {
@@ -196,7 +198,8 @@ const DECKS = [
       //'Images/Ducale/Cards/Ducale-Summer-CK.jpg',
       //'Images/Ducale/Cards/Ducale-Winter-P5.jpg',
       'Images/Ducale/Cards/Ducale-Winter-PJ.jpg',
-      'Images/Ducale/Cards/Ducale-Winter-PQ.jpg'      
+      'Images/Ducale/Cards/Ducale-Winter-PQ.jpg',
+      'Images/suitscapes-intro-logo-contrast.png'     
     ]
   },
   {
@@ -261,7 +264,8 @@ const DECKS = [
       //'Images/Jass/Cards/Jass-Summer-Shields.jpg',
       'Images/Jass/Cards/Jass-Winter-B10.jpg',
       'Images/Jass/Cards/Jass-Winter-BU.jpg',
-      'Images/Jass/Cards/Jass-Winter-Bells.jpg'
+      'Images/Jass/Cards/Jass-Winter-Bells.jpg',
+      'Images/suitscapes-intro-logo-contrast.png'
     ]  
   }
 ];
@@ -328,7 +332,7 @@ const CONFIG = {
   // Falling cards settings - SMOOTH FLOATING LIKE LEAVES
   cardHeightRatio: 0.3,        // Height of falling cards (relative to canvas height)
   
-  cardOpacity: 200,             // Opacity of falling cards (0 = invisible, 255 = fully opaque)
+  cardOpacity: 180,             // Opacity of falling cards (0 = invisible, 255 = fully opaque)
   
   cardFallSpeed: 4,           // Slower base falling speed for gentle float 2.5 medium
   

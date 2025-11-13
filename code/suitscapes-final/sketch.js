@@ -56,7 +56,10 @@ let smileCalibrationFrames = 60; // Number of frames to calibrate
 let smileCalibrationCount = 0;
 let smileCalibrationSum = 0;
 
+// add global for intro logo
+let introLogoImage = null;
 
+let introCloudsImage = null;
 
 // ==================== PRELOAD ====================
 
@@ -75,6 +78,19 @@ function preload() {
       (err) => console.error(`✗ Failed to load ${audioConfig.name} audio:`, err)
     );
   }
+
+  // load the suitscapes intro logo (place file under Images/)
+  introLogoImage = loadImage('Images/suitscapes-intro-logo-contrast.png', 
+    (img) => { introLogoImage = img; },
+    (err) => { /* ignore load error */ }
+  );
+
+  // load the suitscapes intro clouds background
+  introCloudsImage = loadImage(
+    'Images/suitscapes-intro-clouds.jpg',
+    (img) => { introCloudsImage = img; },
+    (err) => { /* ignore load error */ }
+  );
 
   let loadedCount = 0;
   
@@ -201,33 +217,52 @@ async function setup() {
 function draw() {
   background(255);
 
-  // show loading until images available
+  // wait for assets
   if (!imagesLoaded) {
+    push();
     fill(0);
     textSize(24);
     textAlign(CENTER, CENTER);
     text('Loading images...', width / 2, height / 2);
+    pop();
     return;
   }
 
-  // global rotation for suits
+  // rotation for suits
   rotationAngle += CONFIG.rotationSpeed;
 
-  // LAYER 1: Draw falling cards (background)
-  if (cardsFallingActive) {
-    push();
-    tint(255, CONFIG.cardOpacity);
-    updateAndDrawFallingCards();
-    pop();
+  // LAYER 1: Background — clouds after wave, otherwise falling cards
+  if (waveDetected) {
+    // stop card spawning once wave detected
+    cardsFallingActive = false;
+
+    if (introCloudsImage) {
+      push();
+      imageMode(CORNER);
+      image(introCloudsImage, 0, 0, width, height);
+      pop();
+    } else {
+      push();
+      noStroke();
+      fill(169, 218, 245);
+      rect(0, 0, width, height);
+      pop();
+    }
+  } else {
+    // before wave: falling cards
+    if (cardsFallingActive) {
+      push();
+      tint(255, CONFIG.cardOpacity);
+      updateAndDrawFallingCards();
+      pop();
+    }
   }
 
-  // LAYER 2: Draw the 4 suits in a circle
+  // LAYER 2: suits
   drawDeckSuitsInCircle();
 
-  // --- BEFORE WAVE DETECTION ---
+  // BEFORE WAVE DETECTION: detect the wave to start intro
   if (!waveDetected) {
-    drawOpeningMessages(OPENING_MESSAGES, null);
-
     if (typeof detectHandWaveGesture === 'function') {
       try {
         if (detectHandWaveGesture()) {
@@ -237,12 +272,12 @@ function draw() {
           currentIntroSuitIndex = 0;
         }
       } catch (e) {
-        // ignore detection errors
+        // ignore
       }
     }
   }
 
-  // --- SUIT INTRODUCTIONS (LAYER 3) ---
+  // SUIT INTRODUCTIONS (LAYER 3)
   if (suitIntroActive) {
     const elapsed = millis() - suitIntroStartTime;
 
@@ -256,50 +291,42 @@ function draw() {
         if (currentIntroSuitIndex >= 4) {
           suitIntroActive = false;
           introductionsComplete = true;
-          centerMessage = "What emotion do you prefer?";
-          centerMessageStartTime = millis();
+
+          // enable mouth landmarks and start delayed enabling of tracking
+          showMouthLandmarks = true;
+          mouthEnableStartTime = millis();
         }
       }
     }
   }
 
-  // LAYER 4: Final message after introductions -> enable mouth tracking
-  if (introductionsComplete && centerMessage) {
-    push();
-    fill(0);
-    textAlign(CENTER, CENTER);
-    textSize(36);
-    textFont('Georgia');
-    text(centerMessage, width / 2, height / 2);
-    pop();
-
-    showMouthLandmarks = true;
-
-    if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
-      centerMessage = null;
+  // enable mouth tracking after intro delay (no central text)
+  if (introductionsComplete) {
+    if (typeof mouthEnableStartTime === 'undefined') mouthEnableStartTime = millis();
+    if (millis() - mouthEnableStartTime > CONFIG.initialMessageDelay) {
       trackUserMouth = true;
+      // keep introductionsComplete false so this runs once
+      introductionsComplete = false;
     }
   }
 
-  // LAYER 5: Draw hand landmarks (only before wave detected)
+  // LAYER 5: hand landmarks (only before wave)
   if (handTrackingEnabled && !waveDetected && typeof drawHandLandmarks === 'function') {
     drawHandLandmarks();
   }
 
-  // LAYER 6: Mouth landmarks + mouth interaction detection (kiss / smile / sadness / anger)
+  // LAYER 6: mouth tracking & emotion detection (no center UI messages)
   if (showMouthLandmarks && trackUserMouth) {
-    // draw mouth landmarks if available
     if (typeof drawMouthLandmarks === 'function') {
       drawMouthLandmarks();
     }
 
-    // fetch face landmarks once
     let faces = null;
     if (typeof getFaceLandmarks === 'function') {
       try { faces = getFaceLandmarks(); } catch (e) { faces = null; }
     }
 
-    // run calibrators only when face landmarks exist
+    // step generic calibrators only when face landmarks exist
     if (faces && faces.length && typeof stepMouthCalibrations === 'function') {
       stepMouthCalibrations();
     }
@@ -314,7 +341,7 @@ function draw() {
       text('Calibrating smile — please keep a neutral face', width / 2, height * 0.85);
       pop();
     } else {
-      // KISS first (pucker)
+      // KISS (priority)
       let detectedInteraction = null;
       let kScore = 0;
       if (typeof updateKiss === 'function' && faces && faces.length) {
@@ -326,7 +353,7 @@ function draw() {
         }
       }
 
-      // if no kiss, compute emotion scores and choose robustly
+      // if not kiss, compute emotion scores and decide (smile / sadness / anger)
       if (!detectedInteraction && faces && faces.length) {
         let sScore = 0, sadScore = 0, angerScore = 0;
 
@@ -340,14 +367,11 @@ function draw() {
           try { angerScore = updateAnger(); } catch (e) { angerScore = 0; }
         }
 
-        // thresholds and margin
         const sThresh = (typeof SMILE_THRESH !== 'undefined') ? SMILE_THRESH : 0.5;
         const sadThresh = (typeof SADNESS_THRESH !== 'undefined') ? SADNESS_THRESH : 0.32;
         const angerThresh = (typeof ANGER_ENTRY !== 'undefined') ? ANGER_ENTRY : 0.45;
-        const margin = 1.2; // require 20% margin
+        const margin = 1.2;
 
-        // pick strongest with threshold and margin
-        // prefer anger when its score dominates (avoid confusion with sadness/smile)
         if (angerScore > angerThresh && angerScore > sScore * margin && angerScore > sadScore * margin) {
           detectedInteraction = 'anger';
           if (typeof onAnger === 'function') try { onAnger(angerScore); } catch (e) {}
@@ -358,48 +382,25 @@ function draw() {
           detectedInteraction = 'sadness';
           if (typeof onSadness === 'function') try { onSadness(sadScore); } catch (e) {}
         } else {
-          // fallback to hysteresis states if available
+          // fallback: use hysteresis active flags
           if (typeof updateAnger === 'function' && updateAnger._active && !(updateSmile && updateSmile._active) && !(updateSadness && updateSadness._active)) {
             detectedInteraction = 'anger';
+            if (typeof onAnger === 'function') try { onAnger(updateAnger()); } catch (e) {}
           } else if (typeof updateSadness === 'function' && updateSadness._active && !(updateSmile && updateSmile._active)) {
             detectedInteraction = 'sadness';
+            if (typeof onSadness === 'function') try { onSadness(updateSadness()); } catch (e) {}
           } else if (typeof updateSmile === 'function' && updateSmile._active) {
             detectedInteraction = 'smile';
+            if (typeof onSmile === 'function') try { onSmile(updateSmile()); } catch (e) {}
           }
         }
       }
 
-      // set UI message
-      if (detectedInteraction === 'kiss') {
-        centerMessage = "Kiss detected";
-        centerMessageStartTime = millis();
-      } else if (detectedInteraction === 'smile') {
-        centerMessage = "Smile detected";
-        centerMessageStartTime = millis();
-      } else if (detectedInteraction === 'sadness') {
-        centerMessage = "Sadness detected";
-        centerMessageStartTime = millis();
-      } else if (detectedInteraction === 'anger') {
-        centerMessage = "Anger detected";
-        centerMessageStartTime = millis();
-      }
+      // handlers called above; no center message UI
     }
   }
 
-  // Optional: show centerMessage if set (with timeout)
-  if (centerMessage) {
-    const displayTime = 1500; // ms
-    push();
-    fill(0);
-    textAlign(CENTER, CENTER);
-    textSize(28);
-    text(centerMessage, width / 2, height * 0.12);
-    pop();
-
-    if (millis() - centerMessageStartTime > displayTime) {
-      centerMessage = null;
-    }
-  }
+  // end draw
 }
 
 // ==================== AUDIO ====================
@@ -680,89 +681,86 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
 /**
  * Draws 4 suits in a circle, one from each deck, with waving hands and mouths
  */
+
 function drawDeckSuitsInCircle() {
   const centerX = width / 2;
   const centerY = height / 2;
   const numSuits = 4;
-  
+
   const circleRadius = height * CONFIG.circleRadiusRatio;
   const angleStep = TWO_PI / numSuits;
   const startAngle = -PI / 2;
-  
+
   for (let i = 0; i < numSuits; i++) {
     const angle = startAngle + (i * angleStep) + rotationAngle;
-    
+
     const x = centerX + cos(angle) * circleRadius;
     const y = centerY + sin(angle) * circleRadius;
-    
+
     if (suitImages[i]) {
       const img = suitImages[i];
       const aspectRatio = img.width / img.height;
-      
-      // Get individual sizeRatio from stored suit data
+
+      // Get individual sizeRatio from stored suit data (fallback to 0.25)
       const sizeRatio = (img.suitData && img.suitData.sizeRatio) ? img.suitData.sizeRatio : 0.25;
-      
+
       const targetHeight = height * sizeRatio;
       const targetWidth = targetHeight * aspectRatio;
-      
+
       // Draw suit image (base layer)
       push();
+      imageMode(CENTER);
       tint(255, 255);
       image(img, x, y, targetWidth, targetHeight);
       pop();
-      
-      // ✨ Draw mouth on top of suit (if mouth tracking is active)
+
+      // Draw mouth on top of suit (if mouth tracking is active)
       if (mouthImages[i] && trackUserMouth) {
         push();
         imageMode(CENTER);
-        
+
         // Get the suit data to check which mouth type it is
         const suitData = suitImages[i].suitData;
-        
+
         // Special positioning for kiss mouth - put it higher
         let mouthYOffset;
         if (suitData && suitData.mouth && suitData.mouth.includes('Kiss')) {
-          mouthYOffset = targetHeight * 0.05; // 5% below center (HIGHER for kiss)
+          mouthYOffset = targetHeight * 0.05; // higher for kiss
         } else {
-          mouthYOffset = targetHeight * 0.2; // 20% below center (normal position)
+          mouthYOffset = targetHeight * 0.2; // normal position
         }
-        
+
         // Size mouth relative to suit size
         const mouthSize = targetHeight * 0.35; // Mouth is 35% of suit height
-        
+
         tint(255, 255); // Full opacity
         image(mouthImages[i], x, y + mouthYOffset, mouthSize, mouthSize);
         pop();
       }
-      
-      // ✨ Draw waving hand (only before wave detected)
+
+      // Draw waving hand (only before wave detected)
       if (waveHelloImage && !waveDetected) {
         push();
-        
-        // Calculate wave size based on suit HEIGHT
+
         const waveSize = targetHeight * 0.45;
-        
-        // Position wave hand directly adjacent to suit (NO GAP)
         const waveOffsetX = targetWidth / 2 + (waveSize / 2);
         const waveOffsetY = -targetHeight * 0.1;
-        
-        // ENHANCED waving animation
+
         const waveTime = millis() * 0.006;
         const wavePhase = (TWO_PI / numSuits) * i;
-        
+
         const waveBounce = sin(waveTime + wavePhase) * (targetHeight * 0.15);
         const waveRotation = sin(waveTime + wavePhase) * 0.35;
         const waveSwing = sin(waveTime + wavePhase) * 15;
-        
+
         translate(x + waveOffsetX + waveSwing, y + waveOffsetY + waveBounce);
         rotate(waveRotation);
-        
+
         imageMode(CENTER);
         image(waveHelloImage, 0, 0, waveSize, waveSize);
-        
+
         pop();
       }
-      
     } else {
       // Draw placeholder if image failed to load
       const placeholderSize = height * 0.25;
@@ -772,11 +770,40 @@ function drawDeckSuitsInCircle() {
       strokeWeight(2);
       circle(x, y, placeholderSize);
       fill(100);
+      noStroke();
       textSize(12);
       textAlign(CENTER, CENTER);
       text('?', x, y);
       pop();
     }
+  }
+
+  // Draw intro logo in the center of the circle (larger, proportional to circle)
+  if (introLogoImage) {
+    push();
+    imageMode(CENTER);
+
+    // Larger sizing: use a generous fraction of the circle radius but keep aspect ratio
+    // circleRadius is the radius used to place suit images; scale relative to that.
+    const logoMaxSize = circleRadius * 1.6; // larger than before to fill center space
+    const logoScale = 1; // slight padding so it doesn't touch suits
+
+    let logoW = introLogoImage.width;
+    let logoH = introLogoImage.height;
+    const aspect = logoW / logoH;
+
+    if (logoW >= logoH) {
+      // constrain by width
+      logoW = logoMaxSize * logoScale;
+      logoH = logoW / aspect;
+    } else {
+      // constrain by height
+      logoH = logoMaxSize * logoScale;
+      logoW = logoH * aspect;
+    }
+
+    image(introLogoImage, centerX, centerY, logoW, logoH);
+    pop();
   }
 }
 
