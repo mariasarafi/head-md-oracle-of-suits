@@ -45,11 +45,18 @@ let lastHandWaveDetectionTime = 0;
 
 // UI Toggles
 let handTrackingEnabled = true;
-let showMouthLandmarks = true;
+let showMouthLandmarks = false;
 
 // Add these to your global variables section (around line 32)
 let smoothedSmileIntensity = 0;
 //let faceBlendshapes = null;
+
+let isCalibratingSmile = true;
+let smileCalibrationFrames = 60; // Number of frames to calibrate
+let smileCalibrationCount = 0;
+let smileCalibrationSum = 0;
+
+
 
 // ==================== PRELOAD ====================
 
@@ -199,6 +206,10 @@ async function setup() {
   cardsFallingActive = true;
   cardsFallingStartTime = millis();
   lastCardSpawnTime = millis();
+
+  isCalibratingSmile = true;
+  smileCalibrationCount = 0;
+  smileCalibrationSum = 0;
 }
 
 // ==================== MAIN DRAW LOOP ====================
@@ -280,6 +291,8 @@ function draw() {
       text(centerMessage, width / 2, height / 2);
       pop();
       
+      showMouthLandmarks = true;
+
       // Hide message after delay and start mouth tracking
       if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
         centerMessage = null;
@@ -292,27 +305,57 @@ function draw() {
     if (handTrackingEnabled && !waveDetected) {
       drawHandLandmarks();
     }
+     trackUserMouth = true;
+
+    //console.log('Smile score:', score);
+    console.log('TrackUserMouth', trackUserMouth);
+
 
     // LAYER 6: Draw mouth landmarks (after wave detected) and start emotions recognition
     if (showMouthLandmarks && trackUserMouth) {
-      drawMouthLandmarks(); 
-      // Smile detection and debug message
-      const smileData = detectSmile();
-     
-      if (smileData.isSmiling) {
-         // Get array of suit objects from suitImages
-        const suitsArray = suitImages
-          .filter(img => img && img.suitData)
-          .map(img => img.suitData);
 
-        // Find the landscape path for Joy
-        const joyLandscapePath = getSuitLandscapeByEmotion(suitsArray, 'Joy');
-        if (joyLandscapePath) {
-          console.debug("Landscape for Joy:", joyLandscapePath);
-          // You can now load/display the landscape image if needed
-          // Example: joyLandscapeImg = loadImage(joyLandscapePath);
-        } 
+      // visible confirmation this branch runs
+      console.log('MOUTH BRANCH - showMouthLandmarks:', showMouthLandmarks, 'trackUserMouth:', trackUserMouth, 'isCalibratingSmile:', isCalibratingSmile);
+
+      if (typeof detectSmile === 'function') {
+        try { console.log('detectSmile():', detectSmile()); } catch (e) { console.log('detectSmile() threw:', e); }
+      } else {
+        console.log('detectSmile() not defined');
       }
+
+      const smileLeft = (typeof getBlendshapeScore === 'function') ? getBlendshapeScore('mouthSmileLeft') : null;
+      const smileRight = (typeof getBlendshapeScore === 'function') ? getBlendshapeScore('mouthSmileRight') : null;
+      console.log('Blendshape mouthSmileLeft:', smileLeft, 'mouthSmileRight:', smileRight);
+
+      drawMouthLandmarks();
+
+      if (isCalibratingSmile) {
+        // Collect neutral face scores for calibration
+        const score = (typeof getSmileScore === 'function') ? getSmileScore() : 0;
+        smileCalibrationSum += score;
+        smileCalibrationCount++;
+        // Optionally show a message: "Calibrating... Please keep a neutral face"
+        if (smileCalibrationCount >= smileCalibrationFrames) {
+          smileBaseline = smileCalibrationSum / smileCalibrationCount;
+          SMILE_THRESH = constrain(smileBaseline + 0.18, 0.3, 0.8);
+          isCalibratingSmile = false;
+          console.log('Smile calibration complete. Baseline:', smileBaseline.toFixed(3), 'Threshold:', SMILE_THRESH.toFixed(3));
+        }
+      } else {
+        // Normal smile detection — check function exists and use visible logs
+        if (typeof updateSmile === 'function') {
+          const smileScore = updateSmile();
+          if (isSmiling) {
+            console.log('😊 Smile detected! Score:', smileScore.toFixed(2));
+          } else {
+            console.log('😐 Not smiling. Score:', smileScore.toFixed(2));
+          }
+        } else {
+          console.log('updateSmile() not defined');
+        }
+      }
+    } else {
+      console.log("skip smile branch - showMouthLandmarks:", showMouthLandmarks, "trackUserMouth:", trackUserMouth);
     }
     
   } else {

@@ -5,7 +5,7 @@ let rightEyeBlink = 0.0;
 let jawOpen = 0.0;
 
 // --- smile detection --- keep threshold around 0.50 - 0.65; if based on mouth-width fallback then 0.35-0.55
-const SMILE_THRESH = 0.55;
+let SMILE_THRESH = 0.5;
 let lastSmileScore = 0;
 let isSmiling = false;
 let SMILE_AUTOCALIB = true;
@@ -22,9 +22,6 @@ let blowMouthBaseline = 0;     // normalized mouth width baseline collected duri
 
 // show "Success" for a short time after a smile is detected
 let showSuccessUntil = 0;
-
-// stop GIF after success
-let gifEnabled = true;
 
 // interaction mode: 'smile' or 'blow' (default 'smile')
 let interactionMode = 'smile';
@@ -129,6 +126,76 @@ function drawMouthLandmarks() {
   pop();
 }
 
+//------------------------ SMILE DETECTION -------------------------------------------------
+// returns a 0..1 smile score (prefers blendshapes, falls back to mouth-width heuristic)
+function getSmileScore() {
+  let score = 0;
+  // prefer blendshape values if available
+  if (typeof getBlendshapeScore === 'function') {
+    const left = getBlendshapeScore('mouthSmileLeft') || getBlendshapeScore('smileLeft') || 0;
+    const right = getBlendshapeScore('mouthSmileRight') || getBlendshapeScore('smileRight') || 0;
+    score = max(left, right);
+  }
+
+  // fallback: estimate from mouth outer lip ring width
+  if (!score || score <= 0.01) {
+    let mouth = null;
+    try { mouth = getFeatureRings('FACE_LANDMARKS_LIPS'); } catch (e) { mouth = null; }
+    if (mouth && mouth[0] && mouth[0].length) {
+      const ring = mouth[0];
+      let minX = Infinity, maxX = -Infinity;
+      for (let p of ring) { minX = min(minX, p.x); maxX = max(maxX, p.x); }
+      const mouthWidthPx = maxX - minX;
+      // adjust these values if needed for your camera/face size
+      score = constrain(map(mouthWidthPx, 20, width * 0.35, 0, 1), 0, 1);
+    }
+  }
+
+  return score;
+}
+
+function updateSmile() {
+  // Get the current smile score (from blendshapes or landmarks)
+  const score = getSmileScore();
+
+  // Compare to threshold and update global isSmiling
+  isSmiling = (score > SMILE_THRESH);
+
+  // Optionally store last score for debugging/UI
+  lastSmileScore = score;
+
+  // Optionally call onSmile only on rising edge (when smile starts)
+  if (isSmiling && typeof onSmile === 'function' && !updateSmile.wasSmiling) {
+    onSmile(score);
+  }
+  updateSmile.wasSmiling = isSmiling;
+
+  // Return score for display/logging
+  return score;
+}
+
+function calibrateSmile(score) {
+  try {
+    if (!SMILE_AUTOCALIB || calibCount >= calibFrames) return;
+    smileBaseline = (smileBaseline * calibCount + score) / (calibCount + 1);
+    calibCount++;
+    if (calibCount === calibFrames) {
+      SMILE_THRESH = constrain(smileBaseline + 0.18, 0.3, 0.8);
+      // use console.log safely (nf may not be present in some contexts)
+      try {
+        console.log('Smile baseline', typeof nf === 'function' ? nf(smileBaseline,1,3) : smileBaseline,
+                    'threshold set to', typeof nf === 'function' ? nf(SMILE_THRESH,1,3) : SMILE_THRESH);
+      } catch(e) {
+        console.log('Smile baseline', smileBaseline, 'threshold set to', SMILE_THRESH);
+      }
+    }
+  } catch (e) {
+    console.error('calibrateSmile error:', e);
+    // disable auto-calibration to avoid repeated errors
+    SMILE_AUTOCALIB = false;
+  }
+}
+
 // ==================== SMILE ====================
 function detectSmile() {
   let score = 0;
@@ -151,7 +218,6 @@ function detectSmile() {
       }
     }
   }
-
   // Smooth the intensity for natural transitions
   smoothedSmileIntensity = lerp(smoothedSmileIntensity, score, 0.2);
   isSmiling = smoothedSmileIntensity > 0.2; // Lower threshold for blendshapes
@@ -161,6 +227,9 @@ function detectSmile() {
     intensity: smoothedSmileIntensity
   };
 }
+
+
+
 
 //------------------------ BLOW DETECTION ----------------------------------------------
 
@@ -254,10 +323,6 @@ function updateBlow() {
 // hook called when blow is detected
 function onBlow(score) {
   console.log('Blow detected, score:', score);
-  if (typeof playBeep === 'function') {
-    playBeep(520, 0.18, 'sine');
-  }
-  // default: do not change gifEnabled; customize here if needed
 }
 
 //------------------------ DRAW FACE -------------------------------------------------
