@@ -13,6 +13,39 @@ let smileBaseline = 0;
 let calibFrames = 60;
 let calibCount = 0;
 
+// KISS DETECTION: scorer + updater + hook
+let KISS_THRESH = 0.55;
+let lastKissScore = 0;
+let lastKissAt = 0;
+let KISS_COOLDOWN_MS = 1000;
+let kissBaseline = 0;
+
+// ---------------------SADNESS DETECTION
+let SADNESS_THRESH = 0.035; // tuned on normalized units (face-height). adjust as needed
+let lastSadnessScore = 0;
+let lastSadnessAt = 0;
+let SADNESS_COOLDOWN_MS = 800;
+
+// smoothing / hysteresis params
+let smoothedSmileScore = 0;
+let smoothedSadnessScore = 0;
+
+// small cache / throttling for teeth detection
+let _teethLastFrame = 0;
+let _teethLastScore = 0;
+const TEETH_CHECK_INTERVAL = 6; // check every N frames
+
+const SMILE_ENTRY = 0.52;
+const SMILE_EXIT  = 0.40;
+const SADNESS_ENTRY = 0.28;
+const SADNESS_EXIT  = 0.18;
+const SCORE_SMOOTHING = 0.18; // lerp factor
+
+// ANGER (teeth clenched but visible) detection
+let smoothedAngerScore = 0;
+const ANGER_ENTRY = 0.5;
+const ANGER_EXIT = 0.36;
+
 // --- blow detection ---
 let BLOW_THRESH = 0.18;         // tune 0..1
 let lastBlowScore = 0;
@@ -23,8 +56,11 @@ let blowMouthBaseline = 0;     // normalized mouth width baseline collected duri
 // show "Success" for a short time after a smile is detected
 let showSuccessUntil = 0;
 
+// Generic calibrator utility
+const Calibrators = {}; // map kind -> { frames, count, sum, sampleFn, onComplete }
+
 // interaction mode: 'smile' or 'blow' (default 'smile')
-let interactionMode = 'smile';
+/*let interactionMode = 'smile';
 function setInteractionMode(mode) {
   if (mode === 'smile' || mode === 'blow') {
     interactionMode = mode;
@@ -32,12 +68,40 @@ function setInteractionMode(mode) {
   } else {
     console.warn('Unknown interaction mode:', mode);
   }
-}
+}*/
 
 // helper: call the active interaction update (smile or blow)
-function updateInteraction() {
+/*function updateInteraction() {
   if (interactionMode === 'blow') return updateBlow();
   return updateSmile();
+}*/
+
+function startCalibration(kind, sampleFn, frames = 60, onComplete) {
+  Calibrators[kind] = { frames, count: 0, sum: 0, sampleFn, onComplete };
+}
+
+function updateCalibration(kind) {
+  const c = Calibrators[kind];
+  if (!c) return null;
+  try {
+    const value = (typeof c.sampleFn === 'function') ? c.sampleFn() : 0;
+    c.sum += value;
+    c.count++;
+    if (c.count >= c.frames) {
+      const baseline = c.sum / c.count;
+      delete Calibrators[kind];
+      if (typeof c.onComplete === 'function') c.onComplete(baseline);
+      return baseline;
+    }
+    return null;
+  } catch (e) {
+    delete Calibrators[kind];
+    return null;
+  }
+}
+
+function isCalibrating(kind) {
+  return !!Calibrators[kind];
 }
 
 // ==================== MOUTH TRACKING ====================
@@ -126,6 +190,62 @@ function drawMouthLandmarks() {
   pop();
 }
 
+// helper: compute basic mouth metrics from landmarks (normalized by face height/width)
+function _computeMouthMetrics() {
+  try {
+    const rings = (typeof getFeatureRings === 'function') ? getFeatureRings('FACE_LANDMARKS_LIPS') : null;
+    const faces = (typeof getFaceLandmarks === 'function') ? getFaceLandmarks() : null;
+    const facePts = (faces && faces[0]) ? faces[0] : null;
+    if (!rings || !rings[0] || !rings[1] || !facePts) return null;
+
+    const outer = rings[0];
+    const inner = rings[1];
+
+    // outer width
+    let oMinX = Infinity, oMaxX = -Infinity;
+    for (let p of outer) { oMinX = min(oMinX, p.x); oMaxX = max(oMaxX, p.x); }
+    const outerW = oMaxX - oMinX;
+
+    // inner height
+    let iMinY = Infinity, iMaxY = -Infinity;
+    for (let p of inner) { iMinY = min(iMinY, p.y); iMaxY = max(iMaxY, p.y); }
+    const innerH = iMaxY - iMinY;
+
+    // corners and mouth center Y
+    let leftCorner = outer[0], rightCorner = outer[0];
+    for (let p of outer) {
+      if (p.x <= oMinX + 1e-6) leftCorner = p;
+      if (p.x >= oMaxX - 1e-6) rightCorner = p;
+    }
+    let mMinY = Infinity, mMaxY = -Infinity;
+    for (let p of outer) { mMinY = min(mMinY, p.y); mMaxY = max(mMaxY, p.y); }
+    const mouthCenterY = (mMinY + mMaxY) / 2;
+
+    // face bbox height/width
+    let fMinY = Infinity, fMaxY = -Infinity, fMinX = Infinity, fMaxX = -Infinity;
+    for (let p of facePts) {
+      fMinY = min(fMinY, p.y); fMaxY = max(fMaxY, p.y);
+      fMinX = min(fMinX, p.x); fMaxX = max(fMaxX, p.x);
+    }
+    const faceH = Math.max(1e-4, fMaxY - fMinY);
+    const faceW = Math.max(1e-4, fMaxX - fMinX);
+
+    const normOuterW = constrain(outerW / faceW, 0, 1);
+    const leftCornerDy = leftCorner.y - mouthCenterY;
+    const rightCornerDy = rightCorner.y - mouthCenterY;
+    const cornerAvgDy = (leftCornerDy + rightCornerDy) / 2;
+    const normCornerDy = cornerAvgDy / faceH; // positive => corners down, negative => corners up
+
+    return {
+      normOuterW,
+      normInnerH: constrain(innerH / faceH, 0, 1),
+      normCornerDy
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 //------------------------ SMILE DETECTION -------------------------------------------------
 // returns a 0..1 smile score (prefers blendshapes, falls back to mouth-width heuristic)
 function getSmileScore() {
@@ -154,7 +274,7 @@ function getSmileScore() {
   return score;
 }
 
-function updateSmile() {
+/*function updateSmile() {
   // Get the current smile score (from blendshapes or landmarks)
   const score = getSmileScore();
 
@@ -172,6 +292,33 @@ function updateSmile() {
 
   // Return score for display/logging
   return score;
+}*/
+
+function updateSmile() {
+  let raw = 0;
+  if (typeof getBlendshapeScore === 'function') {
+    raw = getBlendshapeScore('mouthSmileLeft') || getBlendshapeScore('mouthSmileRight') || 0;
+  }
+  if (!raw || raw <= 0.01) {
+    const m = _computeMouthMetrics();
+    if (m) {
+      const widthScore = constrain(map(m.normOuterW, 0.08, 0.32, 0, 1), 0, 1) * 0.25; // de-emphasize width
+      const cornerUp = constrain(-m.normCornerDy * 6.0, 0, 1); // require corners above center
+      const cornerDown = constrain(m.normCornerDy * 8.0, 0, 1); // penalize down
+      raw = widthScore + cornerUp * 0.8 - cornerDown * 1.0;
+      raw = constrain(raw, 0, 1);
+    }
+  }
+
+  smoothedSmileScore = lerp(smoothedSmileScore || 0, raw, SCORE_SMOOTHING);
+
+  if (!updateSmile._active && smoothedSmileScore > SMILE_ENTRY) {
+    updateSmile._active = true;
+    if (typeof onSmile === 'function') onSmile(smoothedSmileScore);
+  } else if (updateSmile._active && smoothedSmileScore < SMILE_EXIT) {
+    updateSmile._active = false;
+  }
+  return smoothedSmileScore;
 }
 
 function calibrateSmile(score) {
@@ -196,7 +343,284 @@ function calibrateSmile(score) {
   }
 }
 
-// ==================== SMILE ====================
+// ------------------KISS----------------------------------
+function getKissScore() {
+  // prefer blendshapes
+  if (typeof getBlendshapeScore === 'function') {
+    const b = getBlendshapeScore('mouthKiss') || getBlendshapeScore('lipPucker') || getBlendshapeScore('mouthPucker') || 0;
+    if (b && b > 0.01) return constrain(b, 0, 1);
+  }
+
+  // fallback: narrow outer-mouth width + small inner-mouth height
+  try {
+    const mouthRings = (typeof getFeatureRings === 'function') ? getFeatureRings('FACE_LANDMARKS_LIPS') : null;
+    const faces = (typeof getFaceLandmarks === 'function') ? getFaceLandmarks() : null;
+    const facePts = (faces && faces[0]) ? faces[0] : null;
+    if (!mouthRings || !mouthRings[0] || !mouthRings[1] || !facePts) return 0;
+
+    // outer width
+    let oMinX = Infinity, oMaxX = -Infinity;
+    for (let p of mouthRings[0]) { oMinX = min(oMinX, p.x); oMaxX = max(oMaxX, p.x); }
+    const outerWidth = oMaxX - oMinX;
+
+    // inner height
+    let iMinY = Infinity, iMaxY = -Infinity;
+    for (let p of mouthRings[1]) { iMinY = min(iMinY, p.y); iMaxY = max(iMaxY, p.y); }
+    const innerHeight = iMaxY - iMinY;
+
+    // face bbox
+    let fMinX = Infinity, fMaxX = -Infinity, fMinY = Infinity, fMaxY = -Infinity;
+    for (let p of facePts) {
+      fMinX = min(fMinX, p.x); fMaxX = max(fMaxX, p.x);
+      fMinY = min(fMinY, p.y); fMaxY = max(fMaxY, p.y);
+    }
+    const faceW = Math.max(0.0001, fMaxX - fMinX);
+    const faceH = Math.max(0.0001, fMaxY - fMinY);
+
+    const normOuterW = constrain(outerWidth / faceW, 0, 1); // smaller when puckered
+    const normInnerH = constrain(innerHeight / faceH, 0, 1); // smaller when lips together
+
+    const widthComp = 1 - normOuterW;
+    const heightComp = 1 - normInnerH;
+
+    return constrain(widthComp * 0.6 + heightComp * 0.4, 0, 1);
+  } catch (e) {
+    return 0;
+  }
+}
+
+function updateKiss() {
+  const score = getKissScore();
+  const now = (typeof millis === 'function') ? millis() : Date.now();
+  if (score > KISS_THRESH && lastKissScore <= KISS_THRESH && (now - lastKissAt) > KISS_COOLDOWN_MS) {
+    lastKissAt = now;
+    if (typeof onKiss === 'function') onKiss(score);
+  }
+  lastKissScore = score;
+  return score;
+}
+
+function onKiss(score) {
+  // placeholder: override in sketch.js if you want to react
+}
+
+// ---------------------SADNESS DETECTION
+function getSadnessScore() {
+  // Prefer blendshapes if available
+  if (typeof getBlendshapeScore === 'function') {
+    const left = getBlendshapeScore('mouthFrownLeft') || 0;
+    const right = getBlendshapeScore('mouthFrownRight') || 0;
+    const b = Math.max(left, right);
+    if (b && b > 0.01) return constrain(b, 0, 1);
+  }
+
+  // Fallback: compute corner-down displacement relative to mouth center normalized by face height
+  try {
+    const mouthRings = (typeof getFeatureRings === 'function') ? getFeatureRings('FACE_LANDMARKS_LIPS') : null;
+    const faces = (typeof getFaceLandmarks === 'function') ? getFaceLandmarks() : null;
+    const facePts = (faces && faces[0]) ? faces[0] : null;
+    if (!mouthRings || !mouthRings[0] || !facePts) return 0;
+
+    const outer = mouthRings[0];
+    // find leftmost and rightmost points as corners
+    let minX = Infinity, maxX = -Infinity;
+    let leftPt = null, rightPt = null;
+    for (let p of outer) {
+      if (p.x < minX) { minX = p.x; leftPt = p; }
+      if (p.x > maxX) { maxX = p.x; rightPt = p; }
+    }
+
+    // mouth center Y (use bbox center)
+    let mMinY = Infinity, mMaxY = -Infinity;
+    for (let p of outer) { mMinY = min(mMinY, p.y); mMaxY = max(mMaxY, p.y); }
+    const mouthCenterY = (mMinY + mMaxY) / 2;
+
+    // face height for normalization
+    let fMinY = Infinity, fMaxY = -Infinity;
+    for (let p of facePts) { fMinY = min(fMinY, p.y); fMaxY = max(fMaxY, p.y); }
+    const faceH = Math.max(0.0001, fMaxY - fMinY);
+
+    // average corner downward offset (positive when corners are lower than center; p.y increases downward)
+    const cornerAvgY = ((leftPt ? leftPt.y : 0) + (rightPt ? rightPt.y : 0)) / 2;
+    const cornerDown = cornerAvgY - mouthCenterY;
+
+    // normalized score (clamp reasonable range)
+    const norm = constrain(cornerDown / faceH, 0, 0.12); // 0..0.12 is typical; adjust
+    // map to 0..1 with a soft thresholding
+    const score = constrain(map(norm, 0.01, 0.08, 0, 1), 0, 1);
+    lastSadnessScore = score;
+    return score;
+  } catch (e) {
+    return 0;
+  }
+}
+
+/*function updateSadness() {
+  const score = getSadnessScore();
+  const now = (typeof millis === 'function') ? millis() : Date.now();
+  if (score > SADNESS_THRESH && lastSadnessScore <= SADNESS_THRESH && (now - lastSadnessAt) > SADNESS_COOLDOWN_MS) {
+    lastSadnessAt = now;
+    if (typeof onSadness === 'function') onSadness(score);
+  }
+  lastSadnessScore = score;
+  return score;
+}*/
+
+function updateSadness() {
+  let raw = 0;
+  if (typeof getBlendshapeScore === 'function') {
+    raw = getBlendshapeScore('mouthFrownLeft') || getBlendshapeScore('mouthFrownRight') || 0;
+  }
+  if (!raw || raw <= 0.01) {
+    const m = _computeMouthMetrics();
+    if (m) {
+      const cornerDown = constrain(m.normCornerDy * 8.0, 0, 1);
+      const widthPenalty = 1 - constrain(map(m.normOuterW, 0.08, 0.32, 0, 1), 0, 1); // sadness often not wide
+      raw = cornerDown * 0.75 + widthPenalty * 0.25;
+      raw = constrain(raw, 0, 1);
+    }
+  }
+
+  smoothedSadnessScore = lerp(smoothedSadnessScore || 0, raw, SCORE_SMOOTHING);
+
+  if (!updateSadness._active && smoothedSadnessScore > SADNESS_ENTRY) {
+    updateSadness._active = true;
+    if (typeof onSadness === 'function') onSadness(smoothedSadnessScore);
+  } else if (updateSadness._active && smoothedSadnessScore < SADNESS_EXIT) {
+    updateSadness._active = false;
+  }
+  return smoothedSadnessScore;
+}
+
+
+
+function onSadness(score) {
+  // placeholder — override in sketch.js if you want to react to sadness events
+}
+
+
+// ---------------------ANGER DETECTION-----------------------------
+
+// ...existing code...
+
+// estimate teeth visibility by sampling video pixels inside inner-mouth polygon
+function getTeethVisibilityScore(sampleScale = 0.18, brightThresh = 200, satThresh = 60) {
+  try {
+    const frameIndex = (typeof millis === 'function') ? Math.floor(millis() / (1000 / 60)) : 0;
+    if (frameIndex - _teethLastFrame < TEETH_CHECK_INTERVAL && _teethLastScore !== undefined) {
+      return _teethLastScore;
+    }
+    _teethLastFrame = frameIndex;
+
+    const rings = (typeof getFeatureRings === 'function') ? getFeatureRings('FACE_LANDMARKS_LIPS') : null;
+    if (!rings || !rings[1] || rings[1].length === 0) { _teethLastScore = 0; return 0; }
+    const inner = rings[1];
+
+    // find video element
+    const vid = window.videoElement || document.querySelector('video');
+    if (!vid || vid.readyState < 2 || !vid.videoWidth) { _teethLastScore = 0; return 0; }
+
+    // compute pixel bbox of inner mouth
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const pts = inner.map(p => {
+      const x = (p.x <= 1 ? p.x * vid.videoWidth : p.x);
+      const y = (p.y <= 1 ? p.y * vid.videoHeight : p.y);
+      minX = Math.min(minX, x); minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      return { x, y };
+    });
+
+    minX = Math.max(0, Math.floor(minX));
+    minY = Math.max(0, Math.floor(minY));
+    maxX = Math.min(vid.videoWidth - 1, Math.ceil(maxX));
+    maxY = Math.min(vid.videoHeight - 1, Math.ceil(maxY));
+    if (maxX <= minX || maxY <= minY) { _teethLastScore = 0; return 0; }
+
+    const sw = Math.max(8, Math.floor((maxX - minX) * sampleScale));
+    const sh = Math.max(8, Math.floor((maxY - minY) * sampleScale));
+
+    const c = document.createElement('canvas');
+    c.width = sw; c.height = sh;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(vid, minX, minY, maxX - minX, maxY - minY, 0, 0, sw, sh);
+    const img = ctx.getImageData(0, 0, sw, sh).data;
+
+    // polygon scaled
+    const poly = pts.map(p => ({ x: (p.x - minX) * (sw / (maxX - minX)), y: (p.y - minY) * (sh / (maxY - minY)) }));
+
+    function pointInPoly(x, y, poly) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].x, yi = poly[i].y, xj = poly[j].x, yj = poly[j].y;
+        const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi + 1e-9) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    let whiteCount = 0, sampleCount = 0;
+    for (let y = 0; y < sh; y++) {
+      for (let x = 0; x < sw; x++) {
+        if (!pointInPoly(x + 0.5, y + 0.5, poly)) continue;
+        const idx = (y * sw + x) * 4;
+        const r = img[idx], g = img[idx + 1], b = img[idx + 2];
+        const bright = (r + g + b) / 3;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = mx - mn;
+        sampleCount++;
+        if (bright >= brightThresh && sat <= satThresh) whiteCount++;
+      }
+    }
+
+    _teethLastScore = (sampleCount === 0) ? 0 : constrain(whiteCount / sampleCount, 0, 1);
+    return _teethLastScore;
+  } catch (e) {
+    _teethLastScore = 0;
+    return 0;
+  }
+}
+
+function getAngerScore() {
+  // prefer blendshapes if they strongly indicate clench
+  if (typeof getBlendshapeScore === 'function') {
+    const b = getBlendshapeScore('jawClench') || getBlendshapeScore('mouthPress') || 0;
+    if (b && b > 0.45) return constrain(b, 0, 1);
+  }
+
+  const m = _computeMouthMetrics();
+  if (!m) return 0;
+
+  // teeth visibility (throttled)
+  const teeth = getTeethVisibilityScore();
+
+  // require teeth visible reasonably and lips tight
+  const innerTight = constrain(1 - m.normInnerH, 0, 1);
+  const cornerDown = constrain(m.normCornerDy * 6.0, 0, 1);
+
+  // teeth must be present to form a strong anger signal (clenched but visible)
+  const raw = constrain(teeth * 0.7 + cornerDown * 0.2 + innerTight * 0.1, 0, 1);
+  return raw;
+}
+
+function updateAnger() {
+  const raw = getAngerScore();
+  smoothedAngerScore = lerp(smoothedAngerScore || 0, raw, SCORE_SMOOTHING);
+
+  if (!updateAnger._active && smoothedAngerScore > ANGER_ENTRY) {
+    updateAnger._active = true;
+    if (typeof onAnger === 'function') onAnger(smoothedAngerScore);
+  } else if (updateAnger._active && smoothedAngerScore < ANGER_EXIT) {
+    updateAnger._active = false;
+  }
+  return smoothedAngerScore;
+}
+
+
+function onAnger(score) {
+  // override in sketch.js to react to anger if needed
+}
+
+// ==================== SMILE PREVIOUS ====================
 function detectSmile() {
   let score = 0;
   // Prefer blendshape values if available

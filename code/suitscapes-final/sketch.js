@@ -207,162 +207,217 @@ async function setup() {
   cardsFallingStartTime = millis();
   lastCardSpawnTime = millis();
 
-  isCalibratingSmile = true;
-  smileCalibrationCount = 0;
-  smileCalibrationSum = 0;
+  // load any saved calibrations and start missing calibrations
+  loadMouthCalibrations();
+  ensureMouthCalibrations();
+
+  //isCalibratingSmile = true;
+  //smileCalibrationCount = 0;
+  //smileCalibrationSum = 0;
 }
 
 // ==================== MAIN DRAW LOOP ====================
-
 function draw() {
   background(255);
-  
-  if (imagesLoaded) {
-    // Rotate the suits continuously
-    rotationAngle += CONFIG.rotationSpeed;
-    
-    // LAYER 1: Draw falling cards (background layer)
-    if (cardsFallingActive) {
-      push();
-      tint(255, CONFIG.cardOpacity);
-      updateAndDrawFallingCards();
-      pop();
-    }
-    
-    // LAYER 2: Draw the 4 suits in a circle (always visible)
-    drawDeckSuitsInCircle();
-    
-    // --- BEFORE WAVE DETECTION ---
-    if (!waveDetected) {
-      // Display cycling opening messages
-      drawOpeningMessages(OPENING_MESSAGES, null);
-      
-      // Check for wave gesture (ONLY ONE CHECK)
-      if (detectHandWaveGesture()) {
-        waveDetected = true;
-        
-        // Start the suit introduction sequence
-        suitIntroActive = true;
-        suitIntroStartTime = millis();
-        currentIntroSuitIndex = 0;
-        
-        console.log('👋 WAVE DETECTED! Starting suit introductions...');
-      }
-    }
-    
-    // --- AFTER WAVE DETECTION ---
-    
-    // LAYER 3: Suit introductions (after wave detected)
-    if (suitIntroActive) {
-      const elapsed = millis() - suitIntroStartTime;
-      
-      if (currentIntroSuitIndex < 4) {
-        // Display the current suit's introduction message
-        displaySuitIntroMessage(currentIntroSuitIndex, elapsed);
-        
-        // Move to next suit after CONFIG duration
-        if (elapsed >= CONFIG.SuitIntroDuration) {
-          currentIntroSuitIndex++;
-          suitIntroStartTime = millis();
-          
-          if (currentIntroSuitIndex >= 4) {
-            // All introductions complete
-            suitIntroActive = false;
-            introductionsComplete = true;
-            
-            // Show final message
-            centerMessage = "What emotion do you prefer?";
-            centerMessageStartTime = millis();
-            
-            console.log('✅ All suit introductions complete!');
-          }
-        }
-      }
-    }
 
-    // LAYER 4: Show final message after suit introductions
-    if (introductionsComplete && centerMessage) {
-      // Draw the "Show me how you feel" message
-      push();
-      fill(0); // Black text (was white on white background!)
-      textAlign(CENTER, CENTER);
-      textSize(36);
-      textFont('Georgia');
-      text(centerMessage, width / 2, height / 2);
-      pop();
-      
-      showMouthLandmarks = true;
-
-      // Hide message after delay and start mouth tracking
-      if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
-        centerMessage = null;
-        trackUserMouth = true;
-        console.log('👄 Starting mouth tracking...');
-      }
-    }
-    
-    // LAYER 5: Draw hand landmarks (only before wave is detected)
-    if (handTrackingEnabled && !waveDetected) {
-      drawHandLandmarks();
-    }
-     trackUserMouth = true;
-
-    //console.log('Smile score:', score);
-    console.log('TrackUserMouth', trackUserMouth);
-
-
-    // LAYER 6: Draw mouth landmarks (after wave detected) and start emotions recognition
-    if (showMouthLandmarks && trackUserMouth) {
-
-      // visible confirmation this branch runs
-      console.log('MOUTH BRANCH - showMouthLandmarks:', showMouthLandmarks, 'trackUserMouth:', trackUserMouth, 'isCalibratingSmile:', isCalibratingSmile);
-
-      if (typeof detectSmile === 'function') {
-        try { console.log('detectSmile():', detectSmile()); } catch (e) { console.log('detectSmile() threw:', e); }
-      } else {
-        console.log('detectSmile() not defined');
-      }
-
-      const smileLeft = (typeof getBlendshapeScore === 'function') ? getBlendshapeScore('mouthSmileLeft') : null;
-      const smileRight = (typeof getBlendshapeScore === 'function') ? getBlendshapeScore('mouthSmileRight') : null;
-      console.log('Blendshape mouthSmileLeft:', smileLeft, 'mouthSmileRight:', smileRight);
-
-      drawMouthLandmarks();
-
-      if (isCalibratingSmile) {
-        // Collect neutral face scores for calibration
-        const score = (typeof getSmileScore === 'function') ? getSmileScore() : 0;
-        smileCalibrationSum += score;
-        smileCalibrationCount++;
-        // Optionally show a message: "Calibrating... Please keep a neutral face"
-        if (smileCalibrationCount >= smileCalibrationFrames) {
-          smileBaseline = smileCalibrationSum / smileCalibrationCount;
-          SMILE_THRESH = constrain(smileBaseline + 0.18, 0.3, 0.8);
-          isCalibratingSmile = false;
-          console.log('Smile calibration complete. Baseline:', smileBaseline.toFixed(3), 'Threshold:', SMILE_THRESH.toFixed(3));
-        }
-      } else {
-        // Normal smile detection — check function exists and use visible logs
-        if (typeof updateSmile === 'function') {
-          const smileScore = updateSmile();
-          if (isSmiling) {
-            console.log('😊 Smile detected! Score:', smileScore.toFixed(2));
-          } else {
-            console.log('😐 Not smiling. Score:', smileScore.toFixed(2));
-          }
-        } else {
-          console.log('updateSmile() not defined');
-        }
-      }
-    } else {
-      console.log("skip smile branch - showMouthLandmarks:", showMouthLandmarks, "trackUserMouth:", trackUserMouth);
-    }
-    
-  } else {
+  // show loading until images available
+  if (!imagesLoaded) {
     fill(0);
     textSize(24);
     textAlign(CENTER, CENTER);
     text('Loading images...', width / 2, height / 2);
+    return;
+  }
+
+  // global rotation for suits
+  rotationAngle += CONFIG.rotationSpeed;
+
+  // LAYER 1: Draw falling cards (background)
+  if (cardsFallingActive) {
+    push();
+    tint(255, CONFIG.cardOpacity);
+    updateAndDrawFallingCards();
+    pop();
+  }
+
+  // LAYER 2: Draw the 4 suits in a circle
+  drawDeckSuitsInCircle();
+
+  // --- BEFORE WAVE DETECTION ---
+  if (!waveDetected) {
+    drawOpeningMessages(OPENING_MESSAGES, null);
+
+    if (typeof detectHandWaveGesture === 'function') {
+      try {
+        if (detectHandWaveGesture()) {
+          waveDetected = true;
+          suitIntroActive = true;
+          suitIntroStartTime = millis();
+          currentIntroSuitIndex = 0;
+        }
+      } catch (e) {
+        // ignore detection errors
+      }
+    }
+  }
+
+  // --- SUIT INTRODUCTIONS (LAYER 3) ---
+  if (suitIntroActive) {
+    const elapsed = millis() - suitIntroStartTime;
+
+    if (currentIntroSuitIndex < 4) {
+      displaySuitIntroMessage(currentIntroSuitIndex, elapsed);
+
+      if (elapsed >= CONFIG.SuitIntroDuration) {
+        currentIntroSuitIndex++;
+        suitIntroStartTime = millis();
+
+        if (currentIntroSuitIndex >= 4) {
+          suitIntroActive = false;
+          introductionsComplete = true;
+          centerMessage = "What emotion do you prefer?";
+          centerMessageStartTime = millis();
+        }
+      }
+    }
+  }
+
+  // LAYER 4: Final message after introductions -> enable mouth tracking
+  if (introductionsComplete && centerMessage) {
+    push();
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(36);
+    textFont('Georgia');
+    text(centerMessage, width / 2, height / 2);
+    pop();
+
+    showMouthLandmarks = true;
+
+    if (millis() - centerMessageStartTime > CONFIG.initialMessageDelay) {
+      centerMessage = null;
+      trackUserMouth = true;
+    }
+  }
+
+  // LAYER 5: Draw hand landmarks (only before wave detected)
+  if (handTrackingEnabled && !waveDetected && typeof drawHandLandmarks === 'function') {
+    drawHandLandmarks();
+  }
+
+  // LAYER 6: Mouth landmarks + mouth interaction detection (kiss / smile / sadness / anger)
+  if (showMouthLandmarks && trackUserMouth) {
+    // draw mouth landmarks if available
+    if (typeof drawMouthLandmarks === 'function') {
+      drawMouthLandmarks();
+    }
+
+    // fetch face landmarks once
+    let faces = null;
+    if (typeof getFaceLandmarks === 'function') {
+      try { faces = getFaceLandmarks(); } catch (e) { faces = null; }
+    }
+
+    // run calibrators only when face landmarks exist
+    if (faces && faces.length && typeof stepMouthCalibrations === 'function') {
+      stepMouthCalibrations();
+    }
+
+    const calibratingSmile = (typeof isCalibrating === 'function') ? isCalibrating('smile') : isCalibratingSmile;
+
+    if (calibratingSmile) {
+      push();
+      fill(0);
+      textAlign(CENTER, CENTER);
+      textSize(20);
+      text('Calibrating smile — please keep a neutral face', width / 2, height * 0.85);
+      pop();
+    } else {
+      // KISS first (pucker)
+      let detectedInteraction = null;
+      let kScore = 0;
+      if (typeof updateKiss === 'function' && faces && faces.length) {
+        try { kScore = updateKiss(); } catch (e) { kScore = 0; }
+        const kThresh = (typeof KISS_THRESH !== 'undefined') ? KISS_THRESH : 0.55;
+        if (kScore > kThresh) {
+          detectedInteraction = 'kiss';
+          if (typeof onKiss === 'function') try { onKiss(kScore); } catch (e) {}
+        }
+      }
+
+      // if no kiss, compute emotion scores and choose robustly
+      if (!detectedInteraction && faces && faces.length) {
+        let sScore = 0, sadScore = 0, angerScore = 0;
+
+        if (typeof updateSmile === 'function') {
+          try { sScore = updateSmile(); } catch (e) { sScore = 0; }
+        }
+        if (typeof updateSadness === 'function') {
+          try { sadScore = updateSadness(); } catch (e) { sadScore = 0; }
+        }
+        if (typeof updateAnger === 'function') {
+          try { angerScore = updateAnger(); } catch (e) { angerScore = 0; }
+        }
+
+        // thresholds and margin
+        const sThresh = (typeof SMILE_THRESH !== 'undefined') ? SMILE_THRESH : 0.5;
+        const sadThresh = (typeof SADNESS_THRESH !== 'undefined') ? SADNESS_THRESH : 0.32;
+        const angerThresh = (typeof ANGER_ENTRY !== 'undefined') ? ANGER_ENTRY : 0.45;
+        const margin = 1.2; // require 20% margin
+
+        // pick strongest with threshold and margin
+        // prefer anger when its score dominates (avoid confusion with sadness/smile)
+        if (angerScore > angerThresh && angerScore > sScore * margin && angerScore > sadScore * margin) {
+          detectedInteraction = 'anger';
+          if (typeof onAnger === 'function') try { onAnger(angerScore); } catch (e) {}
+        } else if (sScore > sThresh && sScore > sadScore * margin && sScore > angerScore * margin) {
+          detectedInteraction = 'smile';
+          if (typeof onSmile === 'function') try { onSmile(sScore); } catch (e) {}
+        } else if (sadScore > sadThresh && sadScore > sScore * margin && sadScore > angerScore * margin) {
+          detectedInteraction = 'sadness';
+          if (typeof onSadness === 'function') try { onSadness(sadScore); } catch (e) {}
+        } else {
+          // fallback to hysteresis states if available
+          if (typeof updateAnger === 'function' && updateAnger._active && !(updateSmile && updateSmile._active) && !(updateSadness && updateSadness._active)) {
+            detectedInteraction = 'anger';
+          } else if (typeof updateSadness === 'function' && updateSadness._active && !(updateSmile && updateSmile._active)) {
+            detectedInteraction = 'sadness';
+          } else if (typeof updateSmile === 'function' && updateSmile._active) {
+            detectedInteraction = 'smile';
+          }
+        }
+      }
+
+      // set UI message
+      if (detectedInteraction === 'kiss') {
+        centerMessage = "Kiss detected";
+        centerMessageStartTime = millis();
+      } else if (detectedInteraction === 'smile') {
+        centerMessage = "Smile detected";
+        centerMessageStartTime = millis();
+      } else if (detectedInteraction === 'sadness') {
+        centerMessage = "Sadness detected";
+        centerMessageStartTime = millis();
+      } else if (detectedInteraction === 'anger') {
+        centerMessage = "Anger detected";
+        centerMessageStartTime = millis();
+      }
+    }
+  }
+
+  // Optional: show centerMessage if set (with timeout)
+  if (centerMessage) {
+    const displayTime = 1500; // ms
+    push();
+    fill(0);
+    textAlign(CENTER, CENTER);
+    textSize(28);
+    text(centerMessage, width / 2, height * 0.12);
+    pop();
+
+    if (millis() - centerMessageStartTime > displayTime) {
+      centerMessage = null;
+    }
   }
 }
 
@@ -806,6 +861,68 @@ function displaySuitIntroMessage(deckIndex, elapsed) {
 function getSuitLandscapeByEmotion(suitsArray, emotion) {
   const suit = suitsArray.find(suit => suit.emotion === emotion);
   return suit ? suit.landscape : null;
+}
+
+// ---------- MOUTH CALIBRATION FUNCTIONS ----------
+
+function loadMouthCalibrations() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('mouthCalibrations') || '{}');
+    if (saved.smile != null) {
+      smileBaseline = parseFloat(saved.smile);
+      SMILE_THRESH = constrain(smileBaseline + 0.18, 0.3, 0.8);
+    }
+    if (saved.kiss != null) {
+      // KISS_THRESH should exist in BodyInteractions.js
+      kissBaseline = parseFloat(saved.kiss);
+      KISS_THRESH = constrain(kissBaseline + 0.12, 0.35, 0.8);
+    }
+    // placeholders for future sad/anger baselines:
+    // if (saved.sad != null) { ... }
+    // if (saved.anger != null) { ... }
+  } catch (e) {
+    // ignore storage errors
+  }
+}
+
+function saveMouthCalibration(kind, baseline) {
+  try {
+    const all = JSON.parse(localStorage.getItem('mouthCalibrations') || '{}');
+    all[kind] = baseline;
+    localStorage.setItem('mouthCalibrations', JSON.stringify(all));
+  } catch (e) { /* ignore */ }
+}
+
+// start calibrations if missing (call from setup or when user requests recalibration)
+function ensureMouthCalibrations() {
+  const saved = JSON.parse(localStorage.getItem('mouthCalibrations') || '{}');
+
+  if (saved.smile == null) {
+    startCalibration('smile', getSmileScore, 60, (baseline) => {
+      smileBaseline = baseline;
+      SMILE_THRESH = constrain(smileBaseline + 0.18, 0.3, 0.8);
+      saveMouthCalibration('smile', baseline);
+    });
+  }
+
+  // require getKissScore to be defined in BodyInteractions.js
+  if (typeof getKissScore === 'function' && saved.kiss == null) {
+    startCalibration('kiss', getKissScore, 60, (baseline) => {
+      kissBaseline = baseline;
+      KISS_THRESH = constrain(kissBaseline + 0.12, 0.3, 0.8);
+      saveMouthCalibration('kiss', baseline);
+    });
+  }
+
+  // future: startCalibration('sad', getSadScore, ...), startCalibration('anger', getAngerScore, ...)
+}
+
+// call this each frame in draw() so active calibrators collect samples
+function stepMouthCalibrations() {
+  // updateCalibration returns baseline when done (onComplete also runs)
+  updateCalibration('smile');
+  updateCalibration('kiss');
+  // updateCalibration('sad'); updateCalibration('anger');
 }
 
 // ==================== UTILITY FUNCTIONS ====================
