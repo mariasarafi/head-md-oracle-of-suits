@@ -81,27 +81,16 @@ function isCalibrating(kind) {
 }
 
 // ==================== MOUTH TRACKING ====================
-
-/**
- * Draw mouth/lips landmarks in the CENTER of the canvas
- */
 function drawMouthLandmarks() {
   const faces = getFaceLandmarks();
-  
-  if (!faces || faces.length === 0) {
-    return;
-  }
-  
+  if (!faces || faces.length === 0) return;
+
   // Get mouth/lips rings for proper outline
   const lipsRings = getFeatureRings('FACE_LANDMARKS_LIPS', 0, true);
-  
-  if (!lipsRings) {
-    return;
-  }
-  
+  if (!lipsRings) return;
+
   // Calculate bounding box of original mouth position
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  
   for (const ring of lipsRings) {
     for (const pt of ring) {
       minX = min(minX, pt.x);
@@ -110,59 +99,50 @@ function drawMouthLandmarks() {
       maxY = max(maxY, pt.y);
     }
   }
-  
-  // Calculate original mouth center
+
+  // Calculate original mouth center (correct)
   const originalCenterX = (minX + maxX) / 2;
-  const originalCenterY = (minY + minY) / 2;
-  
+  const originalCenterY = (minY + maxY) / 2;
+
   // Target position: CENTER of the canvas
   const targetCenterX = width / 2;
   const targetCenterY = height / 2;
-  
-  // Calculate translation offset
-  const offsetX = targetCenterX - originalCenterX;
-  const offsetY = targetCenterY - originalCenterY;
-  
+
   // Optional: Scale up the mouth for better visibility
-  const scaleMultiplier = 2.0; // Make mouth 2x bigger
-  
+  const scaleMultiplier = 2.0;
+
   push();
-  
-  // Draw semi-transparent background circle
-  fill(0, 0, 0, 100);
-  noStroke();
-  circle(targetCenterX, targetCenterY, 200);
-  
+
+  // No background circle so only outlines/points are drawn
+  noFill();
+
   // Draw connections (red lines)
   stroke(255, 0, 0, 255);
   strokeWeight(6);
-  noFill();
-  
+
   for (let i = 0; i < lipsRings.length; i++) {
     const ring = lipsRings[i];
     beginShape();
     for (const pt of ring) {
-      // Translate to center and scale
       const scaledX = (pt.x - originalCenterX) * scaleMultiplier + targetCenterX;
       const scaledY = (pt.y - originalCenterY) * scaleMultiplier + targetCenterY;
       vertex(scaledX, scaledY);
     }
     endShape(CLOSE);
   }
-  
+
   // Draw landmark points (green circles)
   noStroke();
   fill(0, 255, 0, 255);
-  
+
   for (const ring of lipsRings) {
     for (const pt of ring) {
-      // Translate to center and scale
       const scaledX = (pt.x - originalCenterX) * scaleMultiplier + targetCenterX;
       const scaledY = (pt.y - originalCenterY) * scaleMultiplier + targetCenterY;
       circle(scaledX, scaledY, 15);
     }
   }
-  
+
   pop();
 }
 
@@ -567,7 +547,7 @@ function onAnger(score) {
 /**
  * Draw mouth/lips landmarks in the CENTER of the canvas
  */
-function drawMouthLandmarks() {
+/*function drawMouthLandmarks() {
   const faces = getFaceLandmarks();
   
   if (!faces || faces.length === 0) {
@@ -646,7 +626,7 @@ function drawMouthLandmarks() {
   }
   
   pop();
-}
+}*/
 
 // ==================== HAND WAVE DETECTION ====================
 

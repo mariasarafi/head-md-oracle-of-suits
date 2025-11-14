@@ -44,8 +44,8 @@ let handWaveHistory = [];
 let lastHandWaveDetectionTime = 0;
 
 // UI Toggles
-let handTrackingEnabled = true;
-let showMouthLandmarks = false;
+let handTrackingEnabled = false;
+let showMouthLandmarks = true;
 
 // Add these to your global variables section (around line 32)
 let smoothedSmileIntensity = 0;
@@ -60,6 +60,22 @@ let smileCalibrationSum = 0;
 let introLogoImage = null;
 
 let introCloudsImage = null;
+let levelCloudSuitsImage = null;
+
+// add near globals
+let imagesSanitized = false;
+
+// global: control whether the intro/logo is shown in center
+let introLogoVisible = true;
+
+let seasonMessage = null; // { deckIndex, text, startTime, duration }
+let seasonFollowup = null; // follow-up central message
+const SEASON_MESSAGE_DEFAULT_DURATION = 3500;
+
+// Timing constants for detection / messaging
+const DETECT_MESSAGE_DURATION = 1200; // ms for "Detected: <Emotion>"
+const SEASON_MESSAGE_DELAY = 300;     // ms gap before suit speaks
+const FOLLOWUP_DELAY = 200;           // ms gap after suit speaks before season entry message
 
 // ==================== PRELOAD ====================
 
@@ -71,7 +87,6 @@ function preload() {
   const seasons = Object.keys(SEASON_AUDIO);
   for (let season of seasons) {
     const audioConfig = SEASON_AUDIO[season];
-    // remove per-file success logs — keep error callback for failures if desired
     seasonAudio[season] = loadSound(
       audioConfig.file,
       null,
@@ -89,6 +104,13 @@ function preload() {
   introCloudsImage = loadImage(
     'Images/suitscapes-intro-clouds.jpg',
     (img) => { introCloudsImage = img; },
+    (err) => { /* ignore load error */ }
+  );
+
+  // load the suitscapes level clouds with suits background
+  levelCloudSuitsImage = loadImage(
+    'Images/suitslandscape.jpg',
+    (img) => { levelCloudSuitsImage = img; },
     (err) => { /* ignore load error */ }
   );
 
@@ -137,7 +159,6 @@ function preload() {
         suit.mouth,
         (mouthImg) => {
           mouthImages[d] = mouthImg;
-          // success log removed to avoid per-file console spam
           loadedCount++;
           if (loadedCount === totalImages) {
             imagesLoaded = true;
@@ -198,6 +219,23 @@ async function setup() {
   imageMode(CENTER);
   angleMode(RADIANS);
   
+  // remove any CSS filters / blend modes that might tint the canvas in preview environments
+  setTimeout(() => {
+    const cnv = document.querySelector('canvas');
+    if (cnv) {
+      cnv.style.filter = 'none';
+      cnv.style.mixBlendMode = 'normal';
+      cnv.style.background = 'transparent';
+      cnv.style.opacity = '1';
+      cnv.style.mixBlendMode = 'normal';
+    }
+    // also clear obvious parent/background styling
+    if (document.body) {
+      document.body.style.background = '';
+      document.body.style.filter = '';
+    }
+  }, 50);
+
   // start video / hands / face detection without verbose startup logs
   setupVideo(true);
   setupHands();
@@ -211,10 +249,34 @@ async function setup() {
   // load any saved calibrations and start missing calibrations
   loadMouthCalibrations();
   ensureMouthCalibrations();
+
+  // schedule sanitize once images are loaded — run outside draw to avoid a sudden hitch inside the frame loop
+  /*const waitAndSanitize = () => {
+    if (imagesLoaded) {
+      // small timeout lets the browser finish any pending rendering before heavy copy
+      setTimeout(() => { sanitizeImages(); }, 30);
+    } else {
+      const iv = setInterval(() => {
+        if (imagesLoaded) {
+          clearInterval(iv);
+          setTimeout(() => { sanitizeImages(); }, 30);
+        }
+      }, 150);
+    }
+  };
+  waitAndSanitize();*/
 }
 
 // ==================== MAIN DRAW LOOP ====================
 function draw() {
+  // reset any lingering p5 image/compositing state
+ /* noTint();
+  tint(255);
+  blendMode(BLEND);
+  noFill();
+  noStroke();*/
+
+  // base clear (will be immediately covered by background images)
   background(255);
 
   // wait for assets
@@ -228,13 +290,50 @@ function draw() {
     return;
   }
 
-  // rotation for suits
-  rotationAngle += CONFIG.rotationSpeed;
+  // show transient centerMessage if set
+  if (centerMessage && typeof centerMessageStartTime === 'number') {
+    const dur = centerMessage.displayDuration || DETECT_MESSAGE_DURATION;
+    if (millis() - centerMessageStartTime < dur) {
+      drawCenterMessage(centerMessage, 36, null, 80);
+    } else {
+      centerMessage = null;
+      centerMessageStartTime = null;
+    }
+  }
 
-  // LAYER 1: Background — clouds after wave, otherwise falling cards
+  // update global rotation for suits
+  rotationAngle += (CONFIG && CONFIG.rotationSpeed) ? CONFIG.rotationSpeed : 0;
+
+  // LAYER 1: Background
   if (waveDetected) {
     // stop card spawning once wave detected
     cardsFallingActive = false;
+
+    // ensure no lingering tint/fill/blend affects the full-canvas background
+    noTint();
+    noFill();
+    blendMode(BLEND);
+    strokeWeight(0);
+
+    push();
+    imageMode(CORNER);
+
+    if (levelCloudSuitsImage) {
+      image(levelCloudSuitsImage, 0, 0, width, height);
+    } else if (introCloudsImage) {
+      image(introCloudsImage, 0, 0, width, height);
+    } else {
+      // fallback to plain white
+      background(255);
+    }
+
+    pop();
+  } else {
+    // before wave: draw intro clouds as background behind falling cards
+    noTint();
+    noFill();
+    blendMode(BLEND);
+    strokeWeight(0);
 
     if (introCloudsImage) {
       push();
@@ -242,24 +341,30 @@ function draw() {
       image(introCloudsImage, 0, 0, width, height);
       pop();
     } else {
-      push();
-      noStroke();
-      fill(169, 218, 245);
-      rect(0, 0, width, height);
-      pop();
+      background(255);
     }
-  } else {
-    // before wave: falling cards
+
+    // then draw falling cards on top
     if (cardsFallingActive) {
       push();
-      tint(255, CONFIG.cardOpacity);
+      tint(255, (CONFIG && CONFIG.cardOpacity) ? CONFIG.cardOpacity : 255);
       updateAndDrawFallingCards();
       pop();
     }
   }
 
-  // LAYER 2: suits
+  // LAYER 2: suits + (intro logo currently may be drawn inside drawDeckSuitsInCircle)
   drawDeckSuitsInCircle();
+
+  // If a suit should announce a season entry, draw that message beside the suit
+  if (seasonMessage) {
+    drawSeasonEntryMessage();
+  }
+
+  // draw scheduled follow-up (centered) season entry message if it's time
+  if (seasonFollowup) {
+    drawSeasonFollowupMessage();
+  }
 
   // BEFORE WAVE DETECTION: detect the wave to start intro
   if (!waveDetected) {
@@ -272,7 +377,7 @@ function draw() {
           currentIntroSuitIndex = 0;
         }
       } catch (e) {
-        // ignore
+        // ignore detection errors
       }
     }
   }
@@ -284,7 +389,7 @@ function draw() {
     if (currentIntroSuitIndex < 4) {
       displaySuitIntroMessage(currentIntroSuitIndex, elapsed);
 
-      if (elapsed >= CONFIG.SuitIntroDuration) {
+      if (elapsed >= (CONFIG && CONFIG.SuitIntroDuration ? CONFIG.SuitIntroDuration : 2000)) {
         currentIntroSuitIndex++;
         suitIntroStartTime = millis();
 
@@ -295,18 +400,21 @@ function draw() {
           // enable mouth landmarks and start delayed enabling of tracking
           showMouthLandmarks = true;
           mouthEnableStartTime = millis();
+
+          // hide intro logo once introductions complete (prevents future draws)
+          introLogoVisible = false;
+          introLogoImage = null;
         }
       }
     }
   }
 
-  // enable mouth tracking after intro delay (no central text)
+  // enable mouth tracking after intro delay (no central UI message)
   if (introductionsComplete) {
     if (typeof mouthEnableStartTime === 'undefined') mouthEnableStartTime = millis();
-    if (millis() - mouthEnableStartTime > CONFIG.initialMessageDelay) {
+    if (millis() - mouthEnableStartTime > (CONFIG && CONFIG.initialMessageDelay ? CONFIG.initialMessageDelay : 800)) {
       trackUserMouth = true;
-      // keep introductionsComplete false so this runs once
-      introductionsComplete = false;
+      introductionsComplete = false; // run once
     }
   }
 
@@ -315,7 +423,12 @@ function draw() {
     drawHandLandmarks();
   }
 
-  // LAYER 6: mouth tracking & emotion detection (no center UI messages)
+  // If logo visibility has been explicitly turned off ensure it's cleared before mouth drawing
+  if (!introLogoVisible) {
+    introLogoImage = null;
+  }
+
+  // LAYER 6: mouth tracking & emotion detection
   if (showMouthLandmarks && trackUserMouth) {
     if (typeof drawMouthLandmarks === 'function') {
       drawMouthLandmarks();
@@ -326,7 +439,6 @@ function draw() {
       try { faces = getFaceLandmarks(); } catch (e) { faces = null; }
     }
 
-    // step generic calibrators only when face landmarks exist
     if (faces && faces.length && typeof stepMouthCalibrations === 'function') {
       stepMouthCalibrations();
     }
@@ -341,7 +453,7 @@ function draw() {
       text('Calibrating smile — please keep a neutral face', width / 2, height * 0.85);
       pop();
     } else {
-      // KISS (priority)
+      // detect kiss first
       let detectedInteraction = null;
       let kScore = 0;
       if (typeof updateKiss === 'function' && faces && faces.length) {
@@ -349,11 +461,15 @@ function draw() {
         const kThresh = (typeof KISS_THRESH !== 'undefined') ? KISS_THRESH : 0.55;
         if (kScore > kThresh) {
           detectedInteraction = 'kiss';
+          // show detected center message
+          centerMessage = `Detected: Kiss`;
+          centerMessageStartTime = millis();
+          centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
           if (typeof onKiss === 'function') try { onKiss(kScore); } catch (e) {}
         }
       }
 
-      // if not kiss, compute emotion scores and decide (smile / sadness / anger)
+      // if not kiss, compute emotion scores
       if (!detectedInteraction && faces && faces.length) {
         let sScore = 0, sadScore = 0, angerScore = 0;
 
@@ -374,33 +490,83 @@ function draw() {
 
         if (angerScore > angerThresh && angerScore > sScore * margin && angerScore > sadScore * margin) {
           detectedInteraction = 'anger';
+          centerMessage = `Detected: Anger`;
+          centerMessageStartTime = millis();
+          centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
           if (typeof onAnger === 'function') try { onAnger(angerScore); } catch (e) {}
         } else if (sScore > sThresh && sScore > sadScore * margin && sScore > angerScore * margin) {
           detectedInteraction = 'smile';
+          centerMessage = `Detected: Smile`;
+          centerMessageStartTime = millis();
+          centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
           if (typeof onSmile === 'function') try { onSmile(sScore); } catch (e) {}
         } else if (sadScore > sadThresh && sadScore > sScore * margin && sadScore > angerScore * margin) {
           detectedInteraction = 'sadness';
+          centerMessage = `Detected: Sadness`;
+          centerMessageStartTime = millis();
+          centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
           if (typeof onSadness === 'function') try { onSadness(sadScore); } catch (e) {}
         } else {
-          // fallback: use hysteresis active flags
+          // fallback via hysteresis flags
           if (typeof updateAnger === 'function' && updateAnger._active && !(updateSmile && updateSmile._active) && !(updateSadness && updateSadness._active)) {
             detectedInteraction = 'anger';
+            centerMessage = `Detected: Anger`;
+            centerMessageStartTime = millis();
+            centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
             if (typeof onAnger === 'function') try { onAnger(updateAnger()); } catch (e) {}
           } else if (typeof updateSadness === 'function' && updateSadness._active && !(updateSmile && updateSmile._active)) {
             detectedInteraction = 'sadness';
+            centerMessage = `Detected: Sadness`;
+            centerMessageStartTime = millis();
+            centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
             if (typeof onSadness === 'function') try { onSadness(updateSadness()); } catch (e) {}
           } else if (typeof updateSmile === 'function' && updateSmile._active) {
             detectedInteraction = 'smile';
+            centerMessage = `Detected: Smile`;
+            centerMessageStartTime = millis();
+            centerMessage.displayDuration = DETECT_MESSAGE_DURATION;
             if (typeof onSmile === 'function') try { onSmile(updateSmile()); } catch (e) {}
           }
         }
       }
 
-      // handlers called above; no center message UI
+      // when interaction detected: schedule suit message and followup season entry
+      if (detectedInteraction) {
+        const friendly = { kiss: 'Kiss', smile: 'Smile', sadness: 'Sadness', anger: 'Anger' };
+        const emotionLabel = friendly[detectedInteraction] || String(detectedInteraction);
+
+        // Determine timing defaults
+        const detectDur = DETECT_MESSAGE_DURATION;
+        const suitDelay = SEASON_MESSAGE_DELAY;
+        const suitDur = SEASON_MESSAGE_DEFAULT_DURATION;
+        const followDelay = FOLLOWUP_DELAY;
+
+        // Suit-side message: "You feel <Emotion>"
+        const deckIndex = findDeckIndexForInteraction(detectedInteraction);
+        const suitText = `You feel ${emotionLabel}`;
+        seasonMessage = {
+          deckIndex: (deckIndex >= 0) ? deckIndex : null,
+          text: suitText,
+          startTime: millis() + detectDur + suitDelay,
+          duration: suitDur
+        };
+
+        // Follow-up central "You can now enter <Season>"
+        const seasonName = (deckIndex >= 0) ? (getSeasonForDeck(deckIndex) || 'the season') : emotionLabel;
+        seasonFollowup = {
+          text: `You can now enter ${seasonName}`,
+          startTime: seasonMessage.startTime + seasonMessage.duration + followDelay,
+          duration: suitDur
+        };
+
+        // still call user hooks if present
+        try { if (detectedInteraction === 'kiss' && typeof onKiss === 'function') onKiss(); } catch(e) {}
+        try { if (detectedInteraction === 'smile' && typeof onSmile === 'function') onSmile(); } catch(e) {}
+        try { if (detectedInteraction === 'sadness' && typeof onSadness === 'function') onSadness(); } catch(e) {}
+        try { if (detectedInteraction === 'anger' && typeof onAnger === 'function') onAnger(); } catch(e) {}
+      }
     }
   }
-
-  // end draw
 }
 
 // ==================== AUDIO ====================
@@ -424,7 +590,6 @@ function mousePressed() {
     }
     
     soundStarted = true;
-    // removed verbose console log
   }
 }
 
@@ -432,31 +597,37 @@ function mousePressed() {
  * Start audio on any key press
  */
 function keyPressed() {
-  // Press 'H' to toggle hand tracking visualization
+  // Toggle hand-landmarks with 'H' and show brief on-screen feedback
   if (key === 'h' || key === 'H') {
     handTrackingEnabled = !handTrackingEnabled;
-    showMouthLandmarks = !showMouthLandmarks;
-    // removed verbose console log
+    centerMessage = `Hand landmarks: ${handTrackingEnabled ? 'ON' : 'OFF'}`;
+    centerMessageStartTime = millis();
+    centerMessage.displayDuration = (typeof DETECT_MESSAGE_DURATION !== 'undefined') ? DETECT_MESSAGE_DURATION : 1200;
   }
-  
-  // Start audio on any key press
+
+  // Start audio on first key press (keep existing behaviour)
   if (!soundStarted) {
-    userStartAudio();
-    
-    const seasons = Object.keys(SEASON_AUDIO);
+    try { userStartAudio(); } catch (e) { /* ignore user gesture restrictions */ }
+
+    const seasons = (typeof SEASON_AUDIO !== 'undefined') ? Object.keys(SEASON_AUDIO) : [];
     for (let season of seasons) {
       const audioConfig = SEASON_AUDIO[season];
-      const sound = seasonAudio[season];
-      
-      if (sound && sound.isLoaded()) {
-        sound.loop();
-        sound.setVolume(audioConfig.volume);
-        sound.rate(audioConfig.rate);
-      }
+      const sound = seasonAudio && seasonAudio[season];
+      try {
+        const loaded = sound && typeof sound.isLoaded === 'function' ? sound.isLoaded() : !!sound;
+        if (loaded) {
+          if (typeof sound.loop === 'function') sound.loop();
+          if (audioConfig && typeof audioConfig.volume !== 'undefined' && typeof sound.setVolume === 'function') {
+            sound.setVolume(audioConfig.volume);
+          }
+          if (audioConfig && typeof audioConfig.rate !== 'undefined' && typeof sound.rate === 'function') {
+            sound.rate(audioConfig.rate);
+          }
+        }
+      } catch (e) { /* ignore audio control errors */ }
     }
-    
+
     soundStarted = true;
-    // removed verbose console log
   }
 }
 
@@ -676,12 +847,8 @@ function drawCenterMessage(message, txtSize = 48, img = null, imgSize = 80, mess
 
 // ==================== SUIT DRAWING ====================
 /**
- * Draws 4 suits in a circle, one from each deck, with waving hands (only before wave detected)
- */
-/**
  * Draws 4 suits in a circle, one from each deck, with waving hands and mouths
  */
-
 function drawDeckSuitsInCircle() {
   const centerX = width / 2;
   const centerY = height / 2;
@@ -784,7 +951,7 @@ function drawDeckSuitsInCircle() {
     imageMode(CENTER);
 
     // Larger sizing: use a generous fraction of the circle radius but keep aspect ratio
-    // circleRadius is the radius used to place suit images; scale relative to that.
+    const circleRadius = height * CONFIG.circleRadiusRatio;
     const logoMaxSize = circleRadius * 1.6; // larger than before to fill center space
     const logoScale = 1; // slight padding so it doesn't touch suits
 
@@ -802,7 +969,7 @@ function drawDeckSuitsInCircle() {
       logoW = logoH * aspect;
     }
 
-    image(introLogoImage, centerX, centerY, logoW, logoH);
+    image(introLogoImage, width / 2, height / 2, logoW, logoH);
     pop();
   }
 }
@@ -882,9 +1049,6 @@ function loadMouthCalibrations() {
       kissBaseline = parseFloat(saved.kiss);
       KISS_THRESH = constrain(kissBaseline + 0.12, 0.35, 0.8);
     }
-    // placeholders for future sad/anger baselines:
-    // if (saved.sad != null) { ... }
-    // if (saved.anger != null) { ... }
   } catch (e) {
     // ignore storage errors
   }
@@ -918,8 +1082,6 @@ function ensureMouthCalibrations() {
       saveMouthCalibration('kiss', baseline);
     });
   }
-
-  // future: startCalibration('sad', getSadScore, ...), startCalibration('anger', getAngerScore, ...)
 }
 
 // call this each frame in draw() so active calibrators collect samples
@@ -930,8 +1092,151 @@ function stepMouthCalibrations() {
   // updateCalibration('sad'); updateCalibration('anger');
 }
 
+// ----------------------Emotion recognition message-------------
+function findDeckIndexForInteraction(interaction) {
+  if (!interaction) return -1;
+  const target = String(interaction).toLowerCase();
+
+  // Prefer currently loaded suitImages (these have suitData attached in preload)
+  if (Array.isArray(suitImages)) {
+    for (let d = 0; d < suitImages.length; d++) {
+      const img = suitImages[d];
+      const sd = img && img.suitData;
+      if (sd && sd.emotion && String(sd.emotion).toLowerCase() === target) return d;
+    }
+  }
+
+  // Fallback to DECKS metadata (find suit whose sorder === deck.order)
+  if (Array.isArray(DECKS)) {
+    for (let d = 0; d < DECKS.length; d++) {
+      const deck = DECKS[d];
+      if (!deck || !Array.isArray(deck.suits)) continue;
+      const suit = deck.suits.find(s => s && s.sorder === deck.order);
+      if (suit && suit.emotion && String(suit.emotion).toLowerCase() === target) return d;
+    }
+  }
+
+  return -1;
+}
+
+// Return season string for a deck (reads suit.season first)
+function getSeasonForDeck(deckIndex) {
+  if (!Array.isArray(DECKS) || DECKS[deckIndex] == null) return null;
+  const deck = DECKS[deckIndex];
+  const suit = Array.isArray(deck.suits) ? deck.suits.find(s => s && s.sorder === deck.order) : null;
+  if (suit && suit.season) return suit.season;
+  if (deck.season) return deck.season;
+  if (deck.name) return deck.name;
+  return null;
+}
+
+// Show the "You can now enter <Season>" message using deck index (the suit will "say" it)
+function showSeasonEntryMessageForDeck(deckIndex) {
+  const season = getSeasonForDeck(deckIndex) || 'the season';
+  seasonMessage = {
+    deckIndex,
+    text: `You can now enter ${season}`,
+    startTime: millis(),
+    duration: SEASON_MESSAGE_DEFAULT_DURATION
+  };
+}
+
+// Draw the season message next to the rotating suit (startTime-aware)
+function drawSeasonEntryMessage() {
+  if (!seasonMessage || typeof seasonMessage.startTime !== 'number') return;
+
+  // don't draw until startTime reached
+  if (millis() < seasonMessage.startTime) return;
+
+  // clear when past duration
+  if (millis() - seasonMessage.startTime > seasonMessage.duration) {
+    seasonMessage = null;
+    return;
+  }
+
+  const deckIndex = seasonMessage.deckIndex;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const circleRadius = height * CONFIG.circleRadiusRatio;
+  const angleStep = TWO_PI / 4;
+  const startAngle = -PI / 2;
+  const suitAngle = startAngle + (deckIndex != null ? (deckIndex * angleStep) : 0) + rotationAngle;
+
+  // if no deckIndex, draw centered above the circle
+  let messageX, messageY;
+  if (deckIndex == null) {
+    messageX = centerX;
+    messageY = centerY - circleRadius * 0.6;
+  } else {
+    const messageDistance = circleRadius * 1.5;
+    messageX = centerX + cos(suitAngle) * messageDistance;
+    messageY = centerY + sin(suitAngle) * messageDistance;
+  }
+
+  push();
+  fill(0);
+  stroke(255);
+  strokeWeight(3);
+  textSize(32);
+  textStyle(BOLD);
+  textAlign(CENTER, CENTER);
+  text(seasonMessage.text, messageX, messageY);
+  pop();
+}
+
+function drawSeasonFollowupMessage() {
+  if (!seasonFollowup || typeof seasonFollowup.startTime !== 'number') return;
+
+  // not yet time
+  if (millis() < seasonFollowup.startTime) return;
+
+  // still active?
+  if (millis() - seasonFollowup.startTime < seasonFollowup.duration) {
+    // use central rendering helper (same style as centerMessage)
+    drawCenterMessage(seasonFollowup.text, 32, null, 60);
+  } else {
+    seasonFollowup = null;
+  }
+}
+
 // ==================== UTILITY FUNCTIONS ====================
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+}
+
+// call this once after imagesLoaded
+function sanitizeImages() {
+  if (imagesSanitized) return;
+
+  function copyUntinted(img) {
+    if (!img) return img;
+    const g = createGraphics(img.width, img.height);
+    g.push();
+    g.clear();
+    g.imageMode(CORNER);
+    g.noTint();
+    g.tint(255);
+    g.image(img, 0, 0, img.width, img.height);
+    g.pop();
+    return g.get();
+  }
+
+  // Sanitize full-canvas background/logo images first
+  introCloudsImage = copyUntinted(introCloudsImage);
+  levelCloudSuitsImage = copyUntinted(levelCloudSuitsImage);
+  introLogoImage = copyUntinted(introLogoImage);
+
+  // Sanitize suit, mouth and card images arrays
+  for (let i = 0; i < suitImages.length; i++) {
+    suitImages[i] = copyUntinted(suitImages[i]);
+  }
+  for (let i = 0; i < mouthImages.length; i++) {
+    mouthImages[i] = copyUntinted(mouthImages[i]);
+  }
+  for (let i = 0; i < cardImages.length; i++) {
+    cardImages[i] = copyUntinted(cardImages[i]);
+  }
+
+  imagesSanitized = true;
 }

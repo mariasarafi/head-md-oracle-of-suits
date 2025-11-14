@@ -12,7 +12,7 @@ const DECKS = [
         mouth: 'Images/Kiss.png',
         emotion: 'Love',
         season: 'Spring',
-        introMessage: 'Hi, I am the Japanese Cherry Blossom',
+        introMessage: 'Hi, I am Cherry Blossom from Japan',
         landscape: 'Images/Jass/Landscapes/Jass-Spring.png'
       },
       {
