@@ -85,6 +85,9 @@ const QUESTION_DISPLAY_DURATION = (typeof CONFIG !== 'undefined' && CONFIG.quest
 const PRE_QUESTION_TEXT = 'We all are creating card games';
 const PRE_QUESTION_DISPLAY_DURATION = (typeof CONFIG !== 'undefined' && CONFIG.preQuestionDisplayDuration) ? CONFIG.preQuestionDisplayDuration : 2500;
 
+// add this near other globals
+let scheduledSuitMessages = []; // queue of {deckIndex, text, startTime, duration}
+
 
 // ==================== PRELOAD ====================
 
@@ -452,6 +455,10 @@ function draw() {
       if (timeSinceEnable > initialDelay && questionElapsed >= QUESTION_DISPLAY_DURATION) {
         if (!trackUserMouth) {
           trackUserMouth = true;
+          // schedule the four suits speaking in sequence
+          if (typeof scheduleSuitMessages === 'function') scheduleSuitMessages();
+          // clear any previous single seasonMessage so scheduler can promote the queued ones
+          seasonMessage = null;
         }
         introductionsComplete = false; // run once
         centerQuestionShown = false;
@@ -1197,6 +1204,13 @@ function showSeasonEntryMessageForDeck(deckIndex) {
 
 // Draw the season message next to the rotating suit (startTime-aware)
 function drawSeasonEntryMessage() {
+  // If no active seasonMessage, try to activate the next scheduled suit message
+  if ((!seasonMessage || seasonMessage === null) && Array.isArray(scheduledSuitMessages) && scheduledSuitMessages.length > 0) {
+    if (millis() >= scheduledSuitMessages[0].startTime) {
+      seasonMessage = scheduledSuitMessages.shift();
+    }
+  }
+
   if (!seasonMessage || typeof seasonMessage.startTime !== 'number') return;
 
   // don't draw until startTime reached
@@ -1306,4 +1320,51 @@ function sanitizeImages() {
   }
 
   imagesSanitized = true;
+}
+
+function scheduleSuitMessages() {
+  // schedule one "I feel <Emotion>" message for each of the 4 suits
+  scheduledSuitMessages = [];
+  const now = millis();
+  const perSuitDur = (typeof SEASON_MESSAGE_DEFAULT_DURATION !== 'undefined') ? SEASON_MESSAGE_DEFAULT_DURATION : 3500;
+  const gap = 300; // ms gap between suit messages
+  const startOffset = 200; // ms after mouth tracking starts before first message
+  const numSuits = 4;
+
+  for (let d = 0; d < numSuits; d++) {
+    // determine emotion label for the suit (prefer loaded suit image metadata, fallback to DECKS)
+    let emotionLabel = null;
+
+    if (Array.isArray(suitImages) && suitImages[d] && suitImages[d].suitData && suitImages[d].suitData.emotion) {
+      emotionLabel = suitImages[d].suitData.emotion;
+    } else if (Array.isArray(DECKS) && DECKS[d]) {
+      const deck = DECKS[d];
+      const suit = Array.isArray(deck.suits) ? deck.suits.find(s => s && s.sorder === deck.order) : null;
+      if (suit && suit.emotion) emotionLabel = suit.emotion;
+    }
+
+    // final fallback to deck name or generic label
+    if (!emotionLabel) {
+      if (Array.isArray(DECKS) && DECKS[d] && DECKS[d].name) {
+        emotionLabel = DECKS[d].name;
+      } else {
+        emotionLabel = `Suit ${d + 1}`;
+      }
+    }
+
+    // Capitalize first letter if string
+    if (typeof emotionLabel === 'string' && emotionLabel.length > 0) {
+      emotionLabel = emotionLabel.charAt(0).toUpperCase() + emotionLabel.slice(1);
+    }
+
+    const msg = `I feel ${emotionLabel}`;
+    const startTime = now + startOffset + d * (perSuitDur + gap);
+
+    scheduledSuitMessages.push({
+      deckIndex: d,
+      text: msg,
+      startTime,
+      duration: perSuitDur
+    });
+  }
 }
