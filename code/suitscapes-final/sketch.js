@@ -79,8 +79,12 @@ const FOLLOWUP_DELAY = 200;           // ms gap after suit speaks before season 
 
 let centerQuestionShown = false;
 let centerQuestionStartTime = null;
+let centerQuestionPhase = 'pre';
 
 const QUESTION_DISPLAY_DURATION = (typeof CONFIG !== 'undefined' && CONFIG.questionDisplayDuration) ? CONFIG.questionDisplayDuration : 4000;
+const PRE_QUESTION_TEXT = 'We all are creating card games';
+const PRE_QUESTION_DISPLAY_DURATION = (typeof CONFIG !== 'undefined' && CONFIG.preQuestionDisplayDuration) ? CONFIG.preQuestionDisplayDuration : 2500;
+
 
 // ==================== PRELOAD ====================
 
@@ -415,31 +419,45 @@ function draw() {
   }
 
   // enable mouth tracking after intro delay (no central UI message)
+// enable mouth tracking after intro delay (show pre-message then question)
   if (introductionsComplete) {
     if (typeof mouthEnableStartTime === 'undefined') mouthEnableStartTime = millis();
     const initialDelay = (CONFIG && CONFIG.initialMessageDelay) ? CONFIG.initialMessageDelay : 800;
-    const elapsed = millis() - mouthEnableStartTime;
+    const timeSinceEnable = millis() - mouthEnableStartTime;
 
-    // Ensure we set the question start time once when introductionsComplete first becomes true
+    // initialize the question state once
     if (!centerQuestionShown) {
       centerQuestionShown = true;
+      centerQuestionPhase = 'pre';
       centerQuestionStartTime = millis();
     }
 
-    // Show the centered question while either:
-    //  - we're still waiting the original initialDelay OR
-    //  - the question hold duration hasn't elapsed yet
-    const questionHeld = (millis() - centerQuestionStartTime) < QUESTION_DISPLAY_DURATION;
-    if (elapsed <= initialDelay || questionHeld) {
-      drawCenterQuestionMessage('How do you feel today?');
-    } else {
-      // start mouth tracking once after delays and stop showing the question
-      if (!trackUserMouth) {
-        trackUserMouth = true;
+    if (centerQuestionPhase === 'pre') {
+      // show the short intro/pre-message first
+      drawCenterQuestionMessage(PRE_QUESTION_TEXT);
+
+      // advance to the question when pre-duration elapsed
+      if (millis() - centerQuestionStartTime >= PRE_QUESTION_DISPLAY_DURATION) {
+        centerQuestionPhase = 'question';
+        centerQuestionStartTime = millis();
       }
-      introductionsComplete = false; // run once
-      centerQuestionShown = false;
-      centerQuestionStartTime = null;
+    } else {
+      // question phase
+      drawCenterQuestionMessage('How do you feel today?');
+
+      // only proceed to start mouth tracking after:
+      //  - the original initialDelay has passed AND
+      //  - the question display duration has elapsed
+      const questionElapsed = millis() - centerQuestionStartTime;
+      if (timeSinceEnable > initialDelay && questionElapsed >= QUESTION_DISPLAY_DURATION) {
+        if (!trackUserMouth) {
+          trackUserMouth = true;
+        }
+        introductionsComplete = false; // run once
+        centerQuestionShown = false;
+        centerQuestionStartTime = null;
+        centerQuestionPhase = 'pre';
+      }
     }
   }
 
@@ -628,6 +646,17 @@ function keyPressed() {
     centerMessage = `Hand landmarks: ${handTrackingEnabled ? 'ON' : 'OFF'}`;
     centerMessageStartTime = millis();
     centerMessage.displayDuration = (typeof DETECT_MESSAGE_DURATION !== 'undefined') ? DETECT_MESSAGE_DURATION : 1200;
+  }
+
+  // Press '1' to simulate wave detection (starts introductions)
+  if (key === '1') {
+    waveDetected = true;
+    suitIntroActive = true;
+    suitIntroStartTime = millis();
+    currentIntroSuitIndex = 0;
+    //centerMessage = 'Wave detected';
+    //centerMessageStartTime = millis();
+    //centerMessage.displayDuration = (typeof DETECT_MESSAGE_DURATION !== 'undefined') ? DETECT_MESSAGE_DURATION : 1200;
   }
 
   // Start audio on first key press (keep existing behaviour)

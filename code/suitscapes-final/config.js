@@ -7,7 +7,7 @@ const DECKS = [
       {
         name: 'Spring',
         sorder: 0,
-        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom2.png',
+        image: 'Images/Hanafuda/Hanafuda-Spring-March-cherry-blossom-No-Mouth.png',
         sizeRatio: 0.3, // ← Add this: 1.0 = normal size, 0.5 = half size, 1.5 = 1.5x size
         mouth: 'Images/Kiss.png',
         emotion: 'Love',
