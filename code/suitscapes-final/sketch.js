@@ -77,6 +77,11 @@ const DETECT_MESSAGE_DURATION = 1200; // ms for "Detected: <Emotion>"
 const SEASON_MESSAGE_DELAY = 300;     // ms gap before suit speaks
 const FOLLOWUP_DELAY = 200;           // ms gap after suit speaks before season entry message
 
+let centerQuestionShown = false;
+let centerQuestionStartTime = null;
+
+const QUESTION_DISPLAY_DURATION = (typeof CONFIG !== 'undefined' && CONFIG.questionDisplayDuration) ? CONFIG.questionDisplayDuration : 4000;
+
 // ==================== PRELOAD ====================
 
 function preload() {
@@ -412,9 +417,29 @@ function draw() {
   // enable mouth tracking after intro delay (no central UI message)
   if (introductionsComplete) {
     if (typeof mouthEnableStartTime === 'undefined') mouthEnableStartTime = millis();
-    if (millis() - mouthEnableStartTime > (CONFIG && CONFIG.initialMessageDelay ? CONFIG.initialMessageDelay : 800)) {
-      trackUserMouth = true;
+    const initialDelay = (CONFIG && CONFIG.initialMessageDelay) ? CONFIG.initialMessageDelay : 800;
+    const elapsed = millis() - mouthEnableStartTime;
+
+    // Ensure we set the question start time once when introductionsComplete first becomes true
+    if (!centerQuestionShown) {
+      centerQuestionShown = true;
+      centerQuestionStartTime = millis();
+    }
+
+    // Show the centered question while either:
+    //  - we're still waiting the original initialDelay OR
+    //  - the question hold duration hasn't elapsed yet
+    const questionHeld = (millis() - centerQuestionStartTime) < QUESTION_DISPLAY_DURATION;
+    if (elapsed <= initialDelay || questionHeld) {
+      drawCenterQuestionMessage('How do you feel today?');
+    } else {
+      // start mouth tracking once after delays and stop showing the question
+      if (!trackUserMouth) {
+        trackUserMouth = true;
+      }
       introductionsComplete = false; // run once
+      centerQuestionShown = false;
+      centerQuestionStartTime = null;
     }
   }
 
@@ -1197,6 +1222,19 @@ function drawSeasonFollowupMessage() {
   } else {
     seasonFollowup = null;
   }
+}
+
+function drawCenterQuestionMessage(msg) {
+  push();
+  fill(0);
+  stroke(255);
+  strokeWeight(3);
+  textSize(32);       // same size as suit intro messages
+  textStyle(BOLD);
+  textAlign(CENTER, CENTER);
+  // draw in the center of the suits circle (canvas center)
+  text(msg, width / 2, height / 2);
+  pop();
 }
 
 // ==================== UTILITY FUNCTIONS ====================
